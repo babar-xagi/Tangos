@@ -1,20 +1,10 @@
-import { PACKAGE as CORE_PACKAGE, FRAMEWORK } from "@qutivex/core";
-
-/**
- * Phase 1 example server.
- *
- * This is deliberately a plain `Bun.serve()` handler, not the Qutivex `App`
- * API. Phase 1 only has to prove that the repository, workspace links, scripts,
- * and test harness work end to end. Phase 2 replaces this with the real
- * minimal HTTP core.
- */
+import { App } from "qutivex";
 
 const DEFAULT_PORT = 3000;
-const DEFAULT_HOSTNAME = "127.0.0.1";
 
 /** Options accepted by the example server. */
 export interface ServerOptions {
-  /** Interface to bind. Defaults to 127.0.0.1 so examples do not expose ports. */
+  /** Interface to bind. Defaults to 127.0.0.1. */
   hostname?: string;
   /** Port to bind. Defaults to 3000; use 0 for an ephemeral test port. */
   port?: number;
@@ -38,33 +28,25 @@ export function parsePort(value: string | undefined): number {
   return port;
 }
 
-/** Handles one example request. Exported so tests can exercise it without a socket. */
-export function handleRequest(request: Request): Response {
-  const url = new URL(request.url);
+/** Builds the example application. */
+export function createApp(): App {
+  const app = new App({ name: "Qutivex Hello" });
 
-  switch (url.pathname) {
-    case "/":
-      return Response.json({
-        message: `Hello from ${FRAMEWORK.name}`,
-        framework: FRAMEWORK.name,
-        phase: FRAMEWORK.phase,
-        core: CORE_PACKAGE.name,
-        note: "Phase 1 foundation example. The Qutivex App API arrives in Phase 2.",
-      });
+  app.get("/", () => ({
+    message: "Hello from Qutivex 👋",
+    framework: "Qutivex",
+    phase: 2,
+  }));
 
-    case "/health":
-      return Response.json({ status: "ok", phase: FRAMEWORK.phase });
+  app.get("/health", () => ({ status: "ok", phase: 2 }));
 
-    default:
-      return Response.json({ error: "Not Found", path: url.pathname }, { status: 404 });
-  }
+  return app;
 }
 
-/** Starts the example server and returns the Bun server handle. */
-export function startServer(options: ServerOptions = {}) {
-  return Bun.serve({
-    hostname: options.hostname ?? DEFAULT_HOSTNAME,
-    port: options.port ?? DEFAULT_PORT,
-    fetch: handleRequest,
-  });
+/** Starts the example on an ephemeral or provided port and returns its handle. */
+export async function startServer(options: ServerOptions = {}) {
+  const app = createApp();
+  const info = await app.listen(options);
+
+  return { app, info };
 }

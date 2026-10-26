@@ -1,6 +1,8 @@
-# Development guide
+# 🛠️ Development guide
 
-## Toolchain
+> **Project status:** Phase 2 complete. The HTTP core is real; later phases are not implemented yet.
+
+## 🧰 Toolchain
 
 | Tool       | Version | Source |
 | ---------- | ------- | ------ |
@@ -34,7 +36,7 @@ bun --version
 CI reads `.bun-version`; changing the pin is a reviewed change that must update
 `.bun-version`, `packageManager`, `engines.bun`, and this guide together.
 
-## First setup
+## 🚀 First setup
 
 ```sh
 bun install --frozen-lockfile
@@ -44,7 +46,7 @@ bun run validate
 The install must not modify `bun.lock`. If it does, either the lockfile is stale
 or a manifest changed; commit both together after review.
 
-## Daily commands
+## ⌨️ Daily commands
 
 ```sh
 bun run quality       # format + lint + import order (CI gate)
@@ -54,7 +56,7 @@ bun test              # unit + integration
 bun run test:coverage # with 90% threshold and LCOV
 bun run build         # bundle packages to dist/
 bun run smoke         # real-socket example check
-bun run bench         # baseline-only harness
+bun run bench         # native Bun + Qutivex harness
 bun run clean         # remove dist/ and coverage/
 ```
 
@@ -63,11 +65,12 @@ commands; `bun run quality` is the gate and also enforces import ordering.
 
 `bun run validate` runs the full CI gate locally. Run it before pushing.
 
-## Running the example
+## ▶️ Running the example
 
 ```sh
 bun run example
-# Qutivex Phase 1 example listening at http://127.0.0.1:3000/
+# Qutivex Hello
+# ➜  http://127.0.0.1:3000/
 ```
 
 Use another port with `PORT`:
@@ -77,7 +80,7 @@ PORT=8080 bun run example
 ```
 
 The example binds `127.0.0.1` by default so it is not exposed on the network.
-It is a plain Bun server; the framework `App` arrives in Phase 2.
+It uses the public `App` API and the real Bun adapter.
 
 ## Why `tsc` instead of `bun check`
 
@@ -96,7 +99,7 @@ This decision is recorded in
 [ADR 0001](decisions/0001-engineering-foundation.md). Revisit it if `bun check`
 matches `tsc` on the type-test corpus over a stable release window.
 
-## Windows and WSL
+## 🪟 Windows and WSL
 
 Bun's optional platform packages are OS-specific. `@biomejs/biome` installs a
 native binary for the current platform, so a `node_modules` tree produced on
@@ -112,16 +115,16 @@ bun install --frozen-lockfile
 CI runs the quality gate on both `ubuntu-latest` and `windows-latest`. macOS is
 not yet in the matrix.
 
-## Editor setup
+## 🧑‍💻 Editor setup
 
 - Install the Biome extension recommended in
   [.vscode/extensions.json](../.vscode/extensions.json).
 - The workspace recommends Biome as the default formatter and enables format on
-  save plus Biome quick fixes.
+  save plus Biome fix-all actions.
 - TypeScript uses the workspace's pinned compiler via the project's
   `node_modules`; see [.vscode/settings.json](../.vscode/settings.json).
 
-## Troubleshooting
+## 🆘 Troubleshooting
 
 ### Biome fails to find its native binary
 
@@ -140,13 +143,13 @@ Do not force through with `--no-save`. Determine whether a `package.json`
 changed. Update the lockfile with `bun install` and commit both files in the
 same change.
 
-### Port already in use
+### 🔌 Port already in use
 
 The example exits if port `3000` is occupied. Set `PORT` to `0` to pick an
 ephemeral port, or choose another free port.
 
 ### Tests bind sockets
 
-Integration tests bind `127.0.0.1:0` and close their server in `finally`.
+Integration tests bind `127.0.0.1:0` and close their app/server in `finally`.
 If a test fails while holding a server, the test file must be fixed rather than
 relying on process exit. Never bind a fixed public port in tests.

@@ -1,38 +1,39 @@
 import { describe, expect, test } from "bun:test";
-import { handleRequest, parsePort, startServer } from "../../examples/hello/src/server";
+import { createApp, parsePort, startServer } from "../../examples/hello/src/server";
 
-describe("Phase 1 example server", () => {
+describe("Phase 2 example app", () => {
   test("serves the framework identity at /", async () => {
-    const response = handleRequest(new Request("http://localhost/"));
+    const app = createApp();
+    const response = await app.fetch(new Request("http://localhost/"));
     const body = (await response.json()) as {
       message?: string;
       framework?: string;
       phase?: number;
-      core?: string;
     };
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
-    expect(body.message).toBe("Hello from Qutivex");
+    expect(body.message).toBe("Hello from Qutivex 👋");
     expect(body.framework).toBe("Qutivex");
-    expect(body.phase).toBe(1);
-    expect(body.core).toBe("@qutivex/core");
+    expect(body.phase).toBe(2);
   });
 
   test("serves a health check", async () => {
-    const response = handleRequest(new Request("http://localhost/health"));
-    const body = (await response.json()) as { status?: string; phase?: number };
+    const app = createApp();
+    const response = await app.fetch(new Request("http://localhost/health"));
 
     expect(response.status).toBe(200);
-    expect(body).toEqual({ status: "ok", phase: 1 });
+    expect(await response.json()).toEqual({ status: "ok", phase: 2 });
   });
 
-  test("returns JSON 404 for an unknown route", async () => {
-    const response = handleRequest(new Request("http://localhost/nope"));
-    const body = (await response.json()) as { error?: string; path?: string };
+  test("returns the standard 404 envelope", async () => {
+    const app = createApp();
+    const response = await app.fetch(new Request("http://localhost/nope"));
 
     expect(response.status).toBe(404);
-    expect(body).toEqual({ error: "Not Found", path: "/nope" });
+    expect(await response.json()).toEqual({
+      error: { code: "NOT_FOUND", message: "Not Found" },
+    });
   });
 
   test("parses PORT values and rejects invalid ones", () => {
@@ -46,15 +47,20 @@ describe("Phase 1 example server", () => {
     expect(() => parsePort("3.5")).toThrow(RangeError);
   });
 
-  test("binds a real ephemeral port and shuts down", async () => {
-    const server = startServer({ port: 0 });
+  test("starts a real Bun server on an ephemeral port and shuts down", async () => {
+    const { app, info } = await startServer({ port: 0 });
 
     try {
-      const response = await fetch(`http://127.0.0.1:${server.port}/health`);
+      expect(app.state).toBe("running");
+      expect(info.port).toBeGreaterThan(0);
+
+      const response = await fetch(new URL("health", info.url));
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ status: "ok", phase: 1 });
+      expect(await response.json()).toEqual({ status: "ok", phase: 2 });
     } finally {
-      await server.stop(true);
+      await app.stop(true);
     }
+
+    expect(app.state).toBe("stopped");
   });
 });

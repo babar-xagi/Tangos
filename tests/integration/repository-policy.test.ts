@@ -33,6 +33,8 @@ describe("repository policy", () => {
       ".gitignore",
       "LICENSE",
       "README.md",
+      "VISION.md",
+      "ARCHITECTURE.md",
       "CONTRIBUTING.md",
       "CODE_OF_CONDUCT.md",
       "SECURITY.md",
@@ -43,6 +45,24 @@ describe("repository policy", () => {
       "CHANGELOG.md",
       "BENCHMARKS.md",
       "ROADMAP.md",
+      "docs/README.md",
+      "docs/quickstart.md",
+      "docs/api/app.md",
+      "docs/api/errors.md",
+      "docs/phase-0-checklist.md",
+      "docs/phase-1-checklist.md",
+      "docs/phase-2-checklist.md",
+      "docs/competitive-matrix.md",
+      "docs/reference-apps.md",
+      "docs/support-policy.md",
+      "docs/decisions/0002-product-scope.md",
+      "RFC/0001-public-api.md",
+      "RFC/0002-routing.md",
+      "RFC/0003-validation-openapi.md",
+      "RFC/0004-plugin-di.md",
+      "RFC/0005-database.md",
+      "RFC/0006-ai-agents.md",
+      "RFC/0007-configuration.md",
       ".github/workflows/ci.yml",
     ];
 
@@ -62,7 +82,7 @@ describe("repository policy", () => {
     expect(ci).toContain("bun-version-file: .bun-version");
   });
 
-  test("declares the provisional MIT license consistently", async () => {
+  test("declares the MIT license consistently", async () => {
     const manifest = await readJson<RootManifest>("package.json");
     const license = await readText("LICENSE");
 
@@ -75,7 +95,7 @@ describe("repository policy", () => {
     expect(manifest.private).toBe(true);
     expect(manifest.workspaces).toEqual(["packages/*", "examples/*"]);
 
-    for (const packagePath of ["core", "router", "http-bun"]) {
+    for (const packagePath of ["core", "router", "http-bun", "qutivex"]) {
       const pkg = await readJson<PackageManifest>(`packages/${packagePath}/package.json`);
       expect(pkg.private).toBe(true);
       expect(pkg.version).toBe("0.0.0");

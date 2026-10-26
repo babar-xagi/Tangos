@@ -1,125 +1,262 @@
-# Qutivex architecture — Phase 1 snapshot
+# 🏛️ Qutivex architecture — Phase 2
 
-> **Scope:** this document describes the repository architecture at the end of
-> Phase 1. It is not the Phase 0 system specification, and it does not freeze
-> the public API. Route, validation, plugin/DI, database, and AI RFCs are still
-> pending in [RFC/](RFC/).
+> **Scope:** implementation architecture as of Phase 2. Product scope and public
+> API commitments live in [RFC 0001](RFC/0001-public-api.md) and
+> [VISION.md](VISION.md). This document describes what exists now, not the full
+> future system.
 
-## Design constraints carried into the repository
+**Status:** 🟢 Phase 0, 1, and 2 complete · 🚧 Phase 3 next
 
-From [ROADMAP.md](ROADMAP.md) §1.3 and §3.5:
+---
 
-- **Small core.** `@qutivex/core` must not import adapters or optional modules.
-- **Opt-in capabilities.** A simple API must not load database, admin, AI, or
-  frontend code.
-- **One direction of dependency.** Optional modules depend on core contracts,
-  never the reverse.
-- **Explicit behavior.** No hidden network calls, database queries, or agent
-  permissions.
-- **Measured performance.** No claims before a reproducible harness exists.
+## 🎯 Design constraints
 
-## Current package graph
+| Constraint | Consequence |
+| --- | --- |
+| **Bun-first** | `Bun.serve()` is the only HTTP engine. No cross-runtime abstraction. |
+| **Small core** | `@qutivex/core` has zero dependencies and never imports `Bun.*`. |
+| **Opt-in modules** | A minimal API does not load database, admin, AI, or frontend code. |
+| **Explicit behavior** | No hidden body parsing, serialization magic, or global state. |
+| **Safe errors** | One envelope; no internal messages, stacks, or causes in responses. |
+| **Adapter boundary** | Runtime details sit behind `HttpServerAdapter`. |
+| **Measured performance** | A harness exists before any claim is published. |
 
-```text
-examples/hello ──────────────► @qutivex/core
-                                   ▲
-                                   │ (future)
-                    @qutivex/router│ @qutivex/http-bun
-                                   │
-                              Bun.serve()
-```
+---
 
-At the end of Phase 1 the packages contain only package identity and phase
-ownership documentation. No HTTP behavior exists in them yet.
-
-| Package             | Responsibility                                      | Phase |
-| ------------------- | --------------------------------------------------- | ----: |
-| `@qutivex/core`     | App lifecycle, route registry, errors, hooks        |     2 |
-| `@qutivex/router`   | Public route definitions and registration           |     3 |
-| `@qutivex/http-bun` | `Bun.serve()` adapter and request/response bridge   |     2 |
-
-`examples/hello` does **not** use the framework API yet. It is a plain
-`Bun.serve()` handler that proves the workspace, toolchain, build, and test
-harness work. Phase 2 replaces it with the minimal `App`.
-
-## Boundary rules (enforced)
-
-`tests/integration/workspace-boundaries.test.ts` enforces the rules that can be
-checked mechanically today:
-
-1. `@qutivex/core` has no dependencies and no peer dependencies.
-2. Core imports no other `@qutivex/*` package and no optional module.
-3. Core source contains no `Bun.*` API usage; Bun-specific behavior belongs in
-   `@qutivex/http-bun`.
-4. Every package exposes a `types` and `import` condition pointing at its
-   source entry point.
-5. Packages are private and version-locked at `0.0.0` until a release exists.
-
-As packages grow, the same test should gain import-graph checks for every
-boundary, not only core.
-
-## Naming and distribution
-
-- Workspace packages use the `@qutivex/*` scope.
-- The public umbrella import `qutivex` (for example `import { App } from
-  "qutivex"`) is planned but not created yet. Creating it now would commit to
-  an export surface before the Phase 0 public API RFC exists.
-- Packages export TypeScript source via `types`/`import` during development, so
-  Bun can consume the workspace without a build step.
-- `bun run build` bundles each package to `packages/*/dist` with Bun's bundler
-  and externalizes declared dependencies. Declaration-file emission and final
-  publish `exports` are deferred until the packaging decision is revisited;
-  `tsc` remains the source of type truth.
-- `private: true` prevents accidental publication. Flipping it is part of the
-  release checklist, not a side effect of setting a version.
-
-## Runtime and toolchain
-
-| Concern      | Choice                                    | Why |
-| ------------ | ----------------------------------------- | --- |
-| Runtime      | Bun 1.4.4 only                            | Bun-first by design; no cross-runtime abstraction before the API stabilizes. |
-| HTTP server  | `Bun.serve()` (Phase 2)                   | Native server and route table; no custom router yet. |
-| Type checker | TypeScript 7.0.2, `tsc --noEmit`          | Reference checker, editor parity, and future declaration emission. `bun check` is available but is not the CI gate. |
-| Tests        | `bun test`                                | Native runner, built-in coverage, no extra runner dependency. |
-| Format/lint  | Biome 2.6.3                               | One pinned tool for both; fast on CI. |
-| Versions     | Exact pins + `bun.lock`                   | Deliberate upgrades. |
-| Publish      | Manual process                            | Roadmap allows manual versioning; no release automation until a release exists. |
-
-## Configuration files
-
-| File            | Owns |
-| --------------- | ---- |
-| `package.json`  | Workspaces, scripts, pinned dev dependencies, `packageManager`. |
-| `bunfig.toml`   | Exact installs, hoisted linker, test coverage threshold. |
-| `tsconfig.json` | Strict type-checking for every workspace project. |
-| `biome.json`    | Format and lint rules; Markdown is excluded to keep prose diffs intentional. |
-| `.bun-version`  | The one Bun version used by CI, local setup, and examples. |
-| `bun.lock`      | Reproducible dependency graph. |
-
-## Testing layers
+## 🧱 Package graph
 
 ```text
-tests/types/          compile-time assertions (tsc)
-packages/*/test/      package unit tests (bun test)
-tests/unit/           cross-cutting pure logic (bun test)
-tests/integration/    workspace, policy, and real-socket integration (bun test)
-scripts/smoke-example.ts  end-to-end example check used by CI
+                  ┌─────────────────────────┐
+                  │         qutivex         │  public umbrella
+                  │  App + Bun adapter      │
+                  └───────────┬─────────────┘
+                              │
+              ┌───────────────┴────────────────┐
+              ▼                                ▼
+     ┌─────────────────┐              ┌──────────────────┐
+     │ @qutivex/http-bun│─────────────▶│   @qutivex/core  │
+     │ Bun.serve bridge │              │ App, routes,     │
+     └─────────────────┘              │ errors, types    │
+                                      └──────────────────┘
+                                                ▲
+                                                │ Phase 3
+                                      ┌─────────────────┐
+                                      │ @qutivex/router │
+                                      └─────────────────┘
 ```
 
-Details and conventions are in [docs/development.md](docs/development.md) and
-[docs/testing.md](docs/testing.md).
+| Package | Responsibility | Runtime deps |
+| --- | --- | --- |
+| `@qutivex/core` | App lifecycle, exact-match route table, response normalization, errors, shutdown hooks, adapter contract | **none** |
+| `@qutivex/http-bun` | `Bun.serve()` adapter, server handle, startup error wrapping | `@qutivex/core` |
+| `qutivex` | Public import; `App` with Bun adapter wired in; re-exports core contracts | `core`, `http-bun` |
+| `@qutivex/router` | Phase 3 route params, groups, introspection | none yet (placeholder) |
 
-## Deliberate Phase 1 non-features
+Boundaries are enforced by
+[`tests/integration/workspace-boundaries.test.ts`](tests/integration/workspace-boundaries.test.ts):
+core cannot import another package or use `Bun.*`; the adapter may import core;
+the umbrella may import core and the adapter.
 
-- No `App`, router, context, middleware, validation, OpenAPI, CLI, DI, plugins,
-  settings/TOML, database, auth, admin, jobs, AI, agents, observability, or
-  full-stack code.
-- No custom router, serializer, ORM, crypto, queue, or LLM client.
-- No performance claims, published benchmark numbers, or comparisons.
-- No changesets/release automation; the manual process is documented.
+---
 
-## Related decisions
+## 🔁 Request flow
+
+```text
+Bun.serve(fetch)
+      │
+      ▼
+http-bun adapter ──▶ App.fetch(request)
+                         │
+                         ├─ parse URL, uppercase method
+                         ├─ HEAD? use explicit HEAD or fall back to GET
+                         ├─ RouteTable.match(method, path)
+                         │     └─ miss ──▶ 404 envelope
+                         ├─ build RequestContext
+                         ├─ await handler(ctx)
+                         ├─ toResponse(result)
+                         │     ├─ Response passthrough
+                         │     ├─ string  → text/plain
+                         │     ├─ undefined → 204
+                         │     └─ JSON value → application/json
+                         ├─ HEAD? strip body
+                         └─ catch ──▶ onError? → safe error envelope
+```
+
+There is **no middleware layer, body parser, or serializer** in Phase 2. Those
+are deliberately later phases.
+
+---
+
+## 🔄 Lifecycle state machine
+
+```text
+                  register route
+created ─────────────────────────▶ configured
+   │                                   │
+   │            listen()/run()          │
+   └──────────────┬────────────────────┘
+                  ▼
+               starting
+                  │ success            ┌─────────────┐
+                  ├───────────────────▶│   running   │
+                  │ failure            └──────┬──────┘
+                  ▼                           │ stop()
+               failed                         ▼
+                  │                      stopping
+                  │                           │ success
+                  │                           ▼
+                  │                       stopped
+                  │ failure
+                  └──────────────────▶ failed
+
+stop() before start ──────────────────▶ stopped
+```
+
+- `state` is publicly readable.
+- Routes are frozen once startup begins.
+- `stop()` is idempotent; concurrent stops share one shutdown.
+- Shutdown order: stop accepting → server stop → hooks (reverse) → terminal.
+- A hook/server-stop error is reported via `onError` and rejects with
+  `ServerShutdownError`.
+- Apps cannot be restarted after `stopped`/`failed`.
+
+---
+
+## 📤 Response semantics
+
+| Handler returns | Result |
+| --- | --- |
+| `Response` | Unchanged |
+| `string` | `200 text/plain; charset=utf-8` |
+| JSON value | `200 application/json; charset=utf-8` |
+| `undefined` | `204 No Content` |
+| Throws `HttpError` | Status/code; 4xx messages exposed |
+| Throws anything else | `500` generic; original passed to `onError` |
+
+- JSON serialization failures become `RESPONSE_SERIALIZATION_FAILED` (`500`).
+- HEAD responses preserve status/headers but have no body.
+- Error responses use `Cache-Control: no-store`.
+
+---
+
+## 💥 Error model
+
+```text
+QutivexError (code, status, expose, cause)
+├── HttpError          → intentional 4xx/5xx
+├── ConfigurationError → invalid app/route/adapter setup
+├── LifecycleError     → invalid operation for current state
+├── ServerStartError   → adapter failed to start
+└── ServerShutdownError→ stop/hook failure
+```
+
+Client envelope:
+
+```json
+{ "error": { "code": "NOT_FOUND", "message": "Not Found" } }
+```
+
+`expose: false` replaces the message with the standard status phrase. Causes and
+stacks never reach clients.
+
+---
+
+## 🔌 Adapter contract
+
+```ts
+interface HttpServerAdapter {
+  start(options: {
+    hostname: string;
+    port: number;
+    development: boolean;
+    fetch: (request: Request) => Promise<Response>;
+  }): HttpServer | Promise<HttpServer>;
+}
+
+interface HttpServer {
+  readonly hostname: string;
+  readonly port: number;
+  readonly url: URL;
+  stop(force?: boolean): Promise<void>;
+}
+```
+
+The Bun adapter:
+
+- Calls `Bun.serve({ hostname, port, fetch, development, reusePort: false })`.
+- Exposes the bound address and a stop function.
+- Wraps startup failures in `ServerStartError` with the original cause.
+
+The core can be tested with a fake adapter, and a future runtime can implement the
+same contract without changing routes or handlers.
+
+---
+
+## 🗃️ Route table (Phase 2)
+
+- Map of method → path → handler.
+- Exact path matching on `URL.pathname`.
+- Path validation: leading `/`, no query/fragment/whitespace.
+- Duplicate method + path rejected.
+- HEAD fallback to GET when no explicit HEAD route exists.
+- Unknown method/path → 404 (405 is Phase 3).
+- Registration only in `created`/`configured`.
+
+Seed for Phase 3:
+[RFC 0002](RFC/0002-routing.md) adds params, wildcards, groups, metadata, and
+Bun-native route registration.
+
+---
+
+## 🧪 Testing architecture
+
+| Layer | Location | Proves |
+| --- | --- | --- |
+| Unit | `packages/core/test/` | Routes, responses, errors, lifecycle, concurrency |
+| Adapter | `packages/http-bun/test/` | Real `Bun.serve()`, port conflicts, repeated stop |
+| Integration | `tests/integration/` | Example app, real sockets, aborted clients, port conflicts |
+| Type-level | `tests/types/` | Public types, handler results, read-only fields |
+| Policy | `tests/integration/` | Boundaries, pins, required docs, CI gate |
+
+CI runs the same gate on Linux and Windows:
+install → quality → typecheck → coverage → build → smoke.
+
+---
+
+## 📦 Packaging and build
+
+- Workspace packages export TypeScript source through `types`/`import`
+  conditions; Bun consumes them without a build step.
+- `bun run build` bundles each package to `dist` with declared dependencies
+  externalized.
+- `private: true` prevents accidental publication before the release checklist.
+- Declaration emission and final publish metadata remain open (Phase 15).
+
+---
+
+## 🚧 Deferred by design
+
+| Area | Phase |
+| --- | --- |
+| Path params, query/header/cookie helpers, groups, middleware, SSE, WebSockets | 3 |
+| Validation, body parsing, OpenAPI, Swagger | 4 |
+| CLI, generator, settings/TOML, dev server | 5 |
+| Plugins, DI, test client | 6 |
+| Drizzle, migrations | 7 |
+| Auth, RBAC, CSRF, CORS, security headers | 8 |
+| Admin | 9 |
+| Jobs, cache, storage, email | 10 |
+| AI providers | 11 |
+| Agents, durable workflows | 12 |
+| Observability, enterprise operations | 13 |
+| SSR, forms, assets, React | 14 |
+| Performance/security hardening, 1.0 | 15 |
+
+---
+
+## 📚 Related decisions
 
 - [ADR 0001 — Engineering foundation](docs/decisions/0001-engineering-foundation.md)
-- [Phase 1 delivery checklist](docs/phase-1-checklist.md)
-- [Roadmap](ROADMAP.md)
+- [ADR 0002 — Product scope and support](docs/decisions/0002-product-scope.md)
+- [RFC 0001 — Public API](RFC/0001-public-api.md)
+- [Phase 2 checklist](docs/phase-2-checklist.md)

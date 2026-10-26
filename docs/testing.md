@@ -1,77 +1,112 @@
-# Testing guide
+# 🧪 Testing guide
 
-TypeScript is a product feature, so tests cover behavior **and** types. Every
-public API added after Phase 1 needs documented behavior, unit tests, and
-type-level tests where inference matters.
+TypeScript is a product feature, so tests cover **behavior and types**. Every
+public API needs documented behavior, unit or integration tests, and type-level
+tests where inference or read-only contracts matter.
 
-## Test layers
+Current state: **89 tests, 100% functions, 100% lines.**
 
-| Layer        | Location                 | Runner | Purpose |
-| ------------ | ------------------------ | ------ | ------- |
-| Unit         | `packages/*/test/`, `tests/unit/` | `bun test` | Pure logic, no sockets or filesystem side effects. |
-| Integration  | `tests/integration/`     | `bun test` | Workspace resolution, package boundaries, repository policy, real sockets. |
-| Type-level   | `tests/types/*.test-d.ts`| `tsc --noEmit` | Public inference, literal types, read-only contracts, `@ts-expect-error` cases. |
-| End-to-end   | `scripts/smoke-example.ts` | `bun run smoke` | Starts the example on an ephemeral port and asserts real HTTP responses. |
-| Performance  | `benchmarks/http/`       | `bun run bench` | Local harness; not a CI performance gate yet. |
+---
 
-## Commands
+## 🧱 Test layers
+
+| Layer | Location | Runner | Purpose |
+| --- | --- | --- | --- |
+| Unit | `packages/core/test/`, `tests/unit/` | `bun test` | Routes, response semantics, errors, lifecycle, concurrency, benchmark stats |
+| Adapter | `packages/http-bun/test/` | `bun test` | Real `Bun.serve()`, request forwarding, port conflicts, repeated stop |
+| Integration | `tests/integration/` | `bun test` | Real sockets, example app, aborted clients, package boundaries, repository policy |
+| Type-level | `tests/types/*.test-d.ts` | `tsc --noEmit` | Public types, inference, `@ts-expect-error`, read-only members |
+| End-to-end | `scripts/smoke-example.ts` | `bun run smoke` | Starts the example and asserts real HTTP responses |
+| Performance | `benchmarks/http/` | `bun run bench` | Local harness; not a CI performance gate yet |
+
+---
+
+## ⌨️ Commands
 
 ```sh
 bun run quality             # format + lint + import order (CI gate)
 bun run fix                 # apply formatting, lint fixes, import sorting
 bun test                    # all unit + integration tests
 bun test --watch            # watch mode
+bun test path/to/file.ts    # one test file
 bun run test:coverage       # text + lcov, enforces 90% threshold
 bun run typecheck           # includes type-level tests
 bun run smoke               # real-socket example check
 bun run validate            # everything CI runs
 ```
 
-## Coverage
+---
 
-- Coverage is collected with Bun's native instrumentation.
-- `bunfig.toml` sets `coverageThreshold = 0.9`; the command fails if function or
-  line coverage falls below it.
+## 📈 Coverage
+
+- Bun's native instrumentation; LCOV at `coverage/lcov.info`.
+- `bunfig.toml` sets `coverageThreshold = 0.9`; failing function or line
+  coverage fails the command.
 - Test files are excluded from coverage.
-- Do not lower the threshold to land a feature. Add tests or, for genuinely
-  unreachable glue code, isolate it and document the exception.
-- LCOV output is written to `coverage/lcov.info` and uploaded by CI on Linux.
+- Do not lower the threshold to land a feature. Add tests or isolate genuinely
+  unreachable glue and document it.
+- Current Phase 2 coverage is **100% functions and lines**. Keep it there unless
+  a documented exception exists.
+- CI uploads the LCOV report on Linux.
 
-## Conventions
+---
+
+## 📝 Conventions
 
 ### Unit and integration tests
 
-- Name files `*.test.ts` and use `describe`/`test` from `bun:test`.
-- Test observable behavior, not implementation details.
-- Prefer explicit assertions with useful failure messages.
+- Name files `*.test.ts`; use `describe`/`test` from `bun:test`.
+- Test observable behavior, not private implementation details.
 - A regression fix includes a test that fails before the fix.
-- Tests must be deterministic. No fixed ports, no sleeps, no dependency on test
-  execution order.
-- A test that starts a server must bind port `0` and stop it in `finally`.
+- Tests must be deterministic. No fixed public ports, no arbitrary sleeps, no
+  dependency on execution order.
+- A test that starts a server binds `127.0.0.1:0` and stops it in `finally`.
 - Clean up timers, sockets, and temporary files. Do not leak handles.
+- Prefer `app.fetch()` for in-process behavior; use a real socket when the test
+  is specifically about the HTTP stack.
+- Error tests assert **status and the JSON envelope**, not only status.
 
 ### Type-level tests
 
 - Put files in `tests/types/` with a `.test-d.ts` suffix.
-- They are checked by `tsc`, not executed by `bun test`.
+- Checked by `tsc`, not executed by `bun test`.
 - Use exported `type` aliases to avoid unused-local errors.
-- Put `@ts-expect-error` in a function that is never called, so accidental
+- Put `@ts-expect-error` inside a function that is never called, so accidental
   execution cannot mutate state.
 - Test both directions: valid usage compiles; invalid usage is rejected.
+- Keep type tests focused on public contracts, not private helpers.
 
 ### Repository policy tests
 
 `tests/integration/repository-policy.test.ts` turns foundational rules into
-tests: required files, the single Bun pin, license consistency, private
-version-locked packages, and the CI quality gate. When you change one of those
-rules, update the policy test and the docs together.
+tests: required docs, the single Bun pin, license consistency, package privacy
+and versions, and the CI quality gate. Change the rule and the test together.
 
 ### Package boundary tests
 
 `tests/integration/workspace-boundaries.test.ts` enforces the dependency
-direction. New packages must extend it rather than bypass it.
+direction: core has zero dependencies and no `Bun.*`; the adapter depends only
+on core; the umbrella depends only on core + adapter.
 
-## CI
+---
+
+## 🔬 Key Phase 2 scenarios
+
+| Scenario | Why it matters |
+| --- | --- |
+| Every HTTP method | Method registration is easy to break. |
+| Return values | Explicit response semantics are a core promise. |
+| Safe 500s | Internal messages must never reach clients. |
+| HEAD fallback + stripping | Correct HTTP without duplicate handlers. |
+| Startup failure / port conflict | Fail loudly, not silently. |
+| Concurrent `listen` / `stop` | Lifecycle must not race. |
+| Shutdown hook order + failures | Graceful teardown must be reliable. |
+| Aborted client | One disconnect must not break the server. |
+| 50 in-process / 25 socket concurrent requests | Context isolation. |
+
+---
+
+## 🔄 CI
 
 GitHub Actions runs on Linux and Windows:
 
@@ -82,16 +117,16 @@ GitHub Actions runs on Linux and Windows:
 5. `bun run build`
 6. `bun run smoke`
 
-A failure at any step fails the job. `bun run validate` mirrors the same gate
-locally, in the same order.
+A failure at any step fails the job. `bun run validate` mirrors the gate locally.
 
-## What to add in later phases
+---
 
-- Database tests against disposable databases and a documented SQLite parity
-  matrix.
-- Auth/session regression tests, including CSRF, fixation, and revocation.
+## 🔭 What to add in later phases
+
+- Property/fuzz tests for route parsing and validation boundaries.
 - OpenAPI snapshot/contract tests with an independent validator.
-- Property/fuzz tests for parsers and validation boundaries.
-- Agent/tool permission and prompt-injection tests using mock providers.
-- Performance regression thresholds only after a stable workload baseline is
-  recorded.
+- Database tests against disposable databases and a SQLite parity matrix.
+- Auth/session regression tests: CSRF, fixation, revocation.
+- Agent/tool permission and prompt-injection tests with mock providers.
+- Performance regression thresholds after a stable benchmark baseline exists.
+- Multi-platform support matrix tests (macOS, database versions).

@@ -96,14 +96,14 @@ Document a manual SemVer process instead of adding changesets. Keep packages
 the process is intentionally boring and must be exercised manually at `0.1.0`.
 Revisit after the first public release.
 
-### 8. MIT license, provisionally
+### 8. MIT license (finalized in ADR 0002)
 
-Use MIT to satisfy the Phase 1 "clear license" requirement.
+Use MIT to satisfy the Phase 1 "clear license" requirement. Phase 0 finalized
+the choice in [ADR 0002](0002-product-scope.md); it is no longer provisional.
 
-**Consequences:** the Phase 0 license and contribution-model decision remains
-open and must be recorded before public launch. Changing the license later
-requires contributor agreement and is easier before external contributions.
-Until then, CONTRIBUTING states inbound = outbound MIT.
+**Consequences:** contributions are inbound = outbound MIT. Changing the license
+later requires contributor agreement and is much harder after external
+contributions.
 
 ### 9. Source-first package exports, bundled `dist` in CI
 

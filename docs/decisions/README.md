@@ -6,6 +6,7 @@ release and security posture.
 | ADR | Title | Status |
 | --- | ----- | ------ |
 | [0001](0001-engineering-foundation.md) | Engineering foundation decisions | Accepted (Phase 1) |
+| [0002](0002-product-scope.md) | Product scope, license, and support | Accepted (Phase 0) |
 
 ## When to write an ADR
 

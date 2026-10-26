@@ -1,9 +1,9 @@
 # Contributing to Qutivex
 
-Thanks for your interest. Qutivex is currently in **Phase 1** and is not yet a
-usable framework. Contributions that align with the current phase are welcome;
-large features should start as an issue or RFC so they are not designed in a
-pull request.
+Thanks for your interest. Qutivex is currently at **Phase 2** (minimal HTTP
+core) and is not production-ready. Contributions that align with the current
+phase are welcome; large features should start as an issue or RFC so they are
+not designed in a pull request.
 
 Read [ROADMAP.md](ROADMAP.md) for phase scope and [ARCHITECTURE.md](ARCHITECTURE.md)
 for package boundaries before making structural changes.
@@ -16,8 +16,8 @@ for package boundaries before making structural changes.
 - Git.
 - Node.js is not required.
 
-The repository is validated on Linux and Windows in CI. If you switch between
-Windows and WSL, reinstall dependencies; native optional packages are
+CI is configured to validate the same gate on Linux and Windows. If you switch
+between Windows and WSL, reinstall dependencies; native optional packages are
 OS-specific (see [docs/development.md](docs/development.md)).
 
 ## Setup
@@ -110,9 +110,9 @@ Do not report vulnerabilities in public issues. Follow
 ## Licensing
 
 Contributions are accepted under the repository's MIT license (inbound =
-outbound). No contributor license agreement is required at this stage; this may
-change before a public launch, and contributors will be asked to agree
-explicitly if it does.
+outbound), as decided in [ADR 0002](docs/decisions/0002-product-scope.md). No
+contributor license agreement is required at this stage; this may change before
+a public launch, and contributors will be asked to agree explicitly if it does.
 
 ## Code of conduct
 

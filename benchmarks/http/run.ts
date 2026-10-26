@@ -1,20 +1,24 @@
 import { cpus } from "node:os";
+import { App } from "qutivex";
 import { type LatencySummary, summarize } from "./stats";
 
 /**
- * Phase 1 benchmark harness.
+ * Phase 2 benchmark harness.
  *
- * This measures the native Bun baseline only. It exists so the repository has
- * a repeatable harness *before* any performance claim is made, as required by
- * ROADMAP.md §8 and Phase 1. Do not publish its output as a Qutivex benchmark.
- *
- * A Qutivex route scenario is added once the minimal HTTP core exists in
- * Phase 2; until then the harness has nothing framework-specific to measure.
+ * It measures a native Bun baseline and the same JSON response through a
+ * Qutivex route. It exists to make overhead visible and repeatable. Do not
+ * publish its output as a performance claim without the methodology in
+ * BENCHMARKS.md.
  */
 
+interface BenchServer {
+  stop: () => Promise<void>;
+  url: URL;
+}
+
 interface Scenario {
-  handler: () => Response;
   name: string;
+  start: () => BenchServer | Promise<BenchServer>;
 }
 
 interface RunResult {
@@ -27,14 +31,43 @@ interface ScenarioResult {
   runs: RunResult[];
 }
 
+function nativeServer(handler: () => Response): BenchServer {
+  const server = Bun.serve({
+    fetch: handler,
+    hostname: "127.0.0.1",
+    port: 0,
+    reusePort: false,
+  });
+
+  return {
+    stop: async () => {
+      await server.stop(true);
+    },
+    url: server.url,
+  };
+}
+
 const scenarios: readonly Scenario[] = [
   {
-    handler: () => new Response("Hello, World!"),
-    name: "plaintext",
+    name: "bun-plaintext",
+    start: () => nativeServer(() => new Response("Hello, World!")),
   },
   {
-    handler: () => Response.json({ message: "Hello, World!" }),
-    name: "json",
+    name: "bun-json",
+    start: () => nativeServer(() => Response.json({ message: "Hello, World!" })),
+  },
+  {
+    name: "qutivex-json",
+    start: async () => {
+      const app = new App({ banner: false, development: false });
+      app.get("/", () => ({ message: "Hello, World!" }));
+      const info = await app.listen({ port: 0 });
+
+      return {
+        stop: () => app.stop(true),
+        url: info.url,
+      };
+    },
   },
 ];
 
@@ -52,11 +85,7 @@ function readPositiveInteger(name: string, fallback: number): number {
   return value;
 }
 
-async function driveLoad(
-  baseUrl: string,
-  requests: number,
-  concurrency: number,
-): Promise<number[]> {
+async function driveLoad(url: URL, requests: number, concurrency: number): Promise<number[]> {
   const latencies: number[] = new Array(requests);
   let nextRequest = 0;
 
@@ -66,7 +95,7 @@ async function driveLoad(
       nextRequest += 1;
 
       const startedAt = performance.now();
-      const response = await fetch(`${baseUrl}/`);
+      const response = await fetch(url);
       await response.arrayBuffer();
       const elapsed = performance.now() - startedAt;
 
@@ -115,7 +144,7 @@ export async function runBenchmark(): Promise<void> {
   const warmup = readPositiveInteger("BENCH_WARMUP", 500);
   const runs = readPositiveInteger("BENCH_RUNS", 3);
 
-  console.log("Qutivex Phase 1 benchmark harness — native Bun baseline only");
+  console.log("Qutivex Phase 2 benchmark harness — Bun baseline vs Qutivex route");
   console.log("No performance claims are made from this output.\n");
   console.log(
     `Bun ${Bun.version} | ${process.platform}/${process.arch} | ${cpus().length} logical CPUs`,
@@ -125,20 +154,15 @@ export async function runBenchmark(): Promise<void> {
   const results: ScenarioResult[] = [];
 
   for (const scenario of scenarios) {
-    const server = Bun.serve({
-      fetch: scenario.handler,
-      hostname: "127.0.0.1",
-      port: 0,
-    });
-    const baseUrl = `http://127.0.0.1:${server.port}`;
+    const server = await scenario.start();
 
     try {
-      await driveLoad(baseUrl, warmup, concurrency);
+      await driveLoad(server.url, warmup, concurrency);
 
       const scenarioRuns: RunResult[] = [];
       for (let run = 0; run < runs; run += 1) {
         const startedAt = performance.now();
-        const latencies = await driveLoad(baseUrl, requests, concurrency);
+        const latencies = await driveLoad(server.url, requests, concurrency);
         const elapsedSeconds = (performance.now() - startedAt) / 1000;
         const summary = summarize(latencies);
 
@@ -150,7 +174,7 @@ export async function runBenchmark(): Promise<void> {
 
       results.push({ name: scenario.name, runs: scenarioRuns });
     } finally {
-      await server.stop(true);
+      await server.stop();
     }
   }
 

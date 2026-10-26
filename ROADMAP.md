@@ -7,6 +7,18 @@
 > **Prepared:** 26 October 2026  
 > **Initial runtime target:** Bun  
 > **Project type:** Open-source framework, with a possible commercial platform later
+>
+> ## 📍 Implementation status — 26 October 2026
+>
+> | Phase | Status | Record |
+> | --- | :---: | --- |
+> | 0 — Product definition and technical specification | ✅ Complete | [Checklist](docs/phase-0-checklist.md) |
+> | 1 — Repository and engineering foundation | ✅ Complete | [Checklist](docs/phase-1-checklist.md) |
+> | 2 — Minimal HTTP core | ✅ Complete | [Checklist](docs/phase-2-checklist.md) |
+> | 3 — Routing, context, middleware | 🚧 Next | [RFC 0002](RFC/0002-routing.md) |
+>
+> The checkboxes below remain the original planning record. Completion evidence
+> lives in the phase checklists and CI, not in unchecked plan boxes.
 
 ---
 

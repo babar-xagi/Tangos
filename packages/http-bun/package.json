@@ -15,6 +15,9 @@
       "default": "./src/index.ts"
     }
   },
+  "dependencies": {
+    "@qutivex/core": "workspace:*"
+  },
   "files": [
     "src",
     "dist"

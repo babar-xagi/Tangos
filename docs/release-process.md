@@ -1,14 +1,13 @@
-# Release process (manual)
+# 📦 Release process (manual)
 
-Qutivex has no published release yet. Phase 1 documents a manual process rather
-than adding changesets or a release bot before there is a package to publish.
-This satisfies the roadmap requirement for "changeset/release automation **or**
-a documented manual versioning process" while keeping the toolchain small.
+Qutivex has no published release yet. Phase 1 documented a manual process rather
+than adding changesets or a release bot before there was a package to publish.
+Phase 2 keeps it: the toolchain stays small until the first real release.
 
 Revisit automation when the first public `0.1.0` release exists and the package
 boundaries have survived real use.
 
-## Versioning policy
+## 🏷️ Versioning policy
 
 - Semantic Versioning, `0.y.z` while pre-1.0.
 - All workspace packages move in lockstep during the pre-release series. Mixed
@@ -19,8 +18,11 @@ boundaries have survived real use.
 - The root `qutivex-monorepo` package is private and is never published.
 - Initial packages remain `private: true` and version `0.0.0` until the first
   release checklist is completed.
+- Publishable packages: `@qutivex/core`, `@qutivex/router`,
+  `@qutivex/http-bun`, and the public `qutivex` umbrella.
+- The umbrella is published **after** its dependencies.
 
-## Pre-release checklist
+## ✅ Pre-release checklist
 
 - [ ] Working tree is clean and based on `main`.
 - [ ] `bun install --frozen-lockfile` succeeds.
@@ -29,14 +31,16 @@ boundaries have survived real use.
 - [ ] `CHANGELOG.md` has a dated section for the release and no unreleased
       changes remain.
 - [ ] Every documented public API has tests and docs.
+- [ ] Public API changes are reflected in [RFC 0001](../RFC/0001-public-api.md).
 - [ ] Package boundaries still pass.
 - [ ] Dependencies are pinned and `bun.lock` is committed.
-- [ ] License, security policy, and contribution files are current.
+- [ ] License, support policy, security policy, and contribution files are
+      current.
 - [ ] A clean clone installs, validates, and runs the example.
 - [ ] Any security issue in the release is resolved or explicitly documented as
       a known limitation; it does not ship silently.
 
-## Steps
+## 🪜 Steps
 
 1. **Choose the version** using SemVer and the change log.
 2. **Update package versions** in every publishable `package.json` (and the
@@ -55,19 +59,22 @@ boundaries have survived real use.
    ```
 8. **Publish** only after the release checklist allows it. For scoped packages
    remove `"private": true` in the same change, build, then publish each
-   package explicitly, for example:
+   package explicitly:
    ```sh
    bun run build
    bun publish --access public --cwd packages/core
+   bun publish --access public --cwd packages/router
+   bun publish --access public --cwd packages/http-bun
+   bun publish --access public --cwd packages/qutivex
    ```
-   Publish in dependency order (`core`, then `router`/`http-bun`). Never publish
-   from a dirty tree.
+   Publish in dependency order (`core`, then `router`/`http-bun`, then the
+   `qutivex` umbrella). Never publish from a dirty tree.
 9. **Create the GitHub release** from the tag with the changelog section and
    the exact supported Bun/TypeScript versions.
 10. **Verify install** from the registry in a clean directory with the pinned
     Bun version.
 
-## Deprecation and upgrades
+## 🔁 Deprecation and upgrades
 
 - Deprecate before removal; document the replacement and the last supported
   version.
@@ -75,14 +82,14 @@ boundaries have survived real use.
 - Support windows for published versions are defined in Phase 15. Until then,
   no compatibility promise exists.
 
-## Rollback
+## ↩️ Rollback
 
 - If a release is defective, publish a patch that reverts or fixes it; do not
   mutate the tag.
 - If a security issue is involved, follow [SECURITY.md](../SECURITY.md) and
   coordinate disclosure before publishing details.
 
-## Emergency security release
+## 🚨 Emergency security release
 
 1. Fix privately, following the security policy.
 2. Run the full gate plus the relevant security regression tests.
@@ -90,7 +97,7 @@ boundaries have survived real use.
 4. Add the incident to the changelog without exposing exploit details before
    users can upgrade.
 
-## Automation trigger
+## 🤖 Automation trigger
 
 Adopt changesets, release-please, or an equivalent only when all of the
 following are true:

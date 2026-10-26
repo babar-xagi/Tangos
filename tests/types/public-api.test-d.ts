@@ -1,26 +1,42 @@
-import { PACKAGE as CORE, type FRAMEWORK } from "@qutivex/core";
-import type { PACKAGE as HTTP_BUN } from "@qutivex/http-bun";
-import type { PACKAGE as ROUTER } from "@qutivex/router";
+import type { App, AppState, Handler, HttpError, RequestContext, RunningAppInfo } from "qutivex";
 
 /**
  * Type-level tests. This file is included in `tsc --noEmit` but is not a
- * runtime test; it verifies that public package metadata keeps literal types.
+ * runtime test; it verifies public types, inference, and read-only contracts.
  */
 
 type Equal<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
 
-export type CoreNameIsLiteral = Expect<Equal<typeof CORE.name, "@qutivex/core">>;
-export type CoreRoleIsLiteral = Expect<
-  Equal<typeof CORE.role, "Application lifecycle, route registry, errors, and hooks">
+export type ContextRequestIsRequest = Expect<Equal<RequestContext["request"], Request>>;
+export type ContextPathIsString = Expect<Equal<RequestContext["path"], string>>;
+export type AppStateIsUnion = Expect<
+  Equal<
+    AppState,
+    "created" | "configured" | "starting" | "running" | "stopping" | "stopped" | "failed"
+  >
 >;
-export type RouterNameIsLiteral = Expect<Equal<typeof ROUTER.name, "@qutivex/router">>;
-export type HttpBunNameIsLiteral = Expect<Equal<typeof HTTP_BUN.name, "@qutivex/http-bun">>;
-export type FrameworkPhaseIsLiteral = Expect<Equal<typeof FRAMEWORK.phase, 1>>;
+export type GetReturnsApp = Expect<Equal<ReturnType<App["get"]>, App>>;
+export type ListenReturnsPromise = Expect<
+  Equal<ReturnType<App["listen"]>, Promise<RunningAppInfo>>
+>;
+export type HttpErrorHasStatus = Expect<Equal<HttpError["status"], number>>;
 
-/** Never executed; proves the compiler rejects mutation of package metadata. */
-export function verifyReadonlyMetadata(): void {
-  // @ts-expect-error — package metadata is declared read-only.
-  CORE.name = "@qutivex/other";
+export const validHandler: Handler = (context) => ({
+  method: context.method,
+  path: context.path,
+});
+
+/** Never executed; proves the compiler rejects invalid handler results. */
+export function verifyHandlerTypes(): void {
+  // @ts-expect-error — symbols are not JSON handler results.
+  const invalid: Handler = () => Symbol("nope");
+  void invalid;
+}
+
+/** Never executed; proves the status property is read-only. */
+export function verifyReadonlyErrorStatus(error: HttpError): void {
+  // @ts-expect-error — HttpError status is read-only.
+  error.status = 500;
 }

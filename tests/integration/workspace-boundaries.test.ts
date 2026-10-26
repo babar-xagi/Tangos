@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { PACKAGE as CORE } from "@qutivex/core";
-import { PACKAGE as HTTP_BUN } from "@qutivex/http-bun";
+import { App as CoreApp } from "@qutivex/core";
+import { bunAdapter } from "@qutivex/http-bun";
 import { PACKAGE as ROUTER } from "@qutivex/router";
+import { App as PublicApp } from "qutivex";
 
 interface PackageManifest {
   dependencies?: Record<string, string>;
@@ -33,12 +34,15 @@ function importSpecifiers(source: string): string[] {
 }
 
 describe("Bun workspace wiring", () => {
-  test("resolves every initial package through its public name", () => {
-    expect([CORE.name, ROUTER.name, HTTP_BUN.name]).toEqual([
-      "@qutivex/core",
-      "@qutivex/router",
-      "@qutivex/http-bun",
-    ]);
+  test("resolves every package through its public name", () => {
+    expect(typeof CoreApp).toBe("function");
+    expect(typeof PublicApp).toBe("function");
+    expect(typeof bunAdapter).toBe("function");
+    expect(ROUTER.name).toBe("@qutivex/router");
+  });
+
+  test("public App extends the core App and wires in Bun", () => {
+    expect(Object.getPrototypeOf(PublicApp)).toBe(CoreApp);
   });
 
   test("keeps core free of runtime dependencies", async () => {
@@ -77,8 +81,19 @@ describe("Bun workspace wiring", () => {
     }
   });
 
+  test("limits adapter and umbrella dependencies to allowed packages", async () => {
+    const httpBun = await readManifest("packages/http-bun/package.json");
+    const umbrella = await readManifest("packages/qutivex/package.json");
+
+    expect(httpBun.dependencies).toEqual({ "@qutivex/core": "workspace:*" });
+    expect(umbrella.dependencies).toEqual({
+      "@qutivex/core": "workspace:*",
+      "@qutivex/http-bun": "workspace:*",
+    });
+  });
+
   test("publishes a types + import export for every package", async () => {
-    for (const packagePath of ["core", "router", "http-bun"]) {
+    for (const packagePath of ["core", "router", "http-bun", "qutivex"]) {
       const manifest = (await Bun.file(
         join(root, "packages", packagePath, "package.json"),
       ).json()) as {

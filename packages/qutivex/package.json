@@ -1,0 +1,26 @@
+{
+  "name": "qutivex",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Qutivex — the Bun-first, TypeScript-native application framework.",
+  "license": "MIT",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@qutivex/core": "workspace:*",
+    "@qutivex/http-bun": "workspace:*"
+  },
+  "files": [
+    "src",
+    "dist"
+  ]
+}

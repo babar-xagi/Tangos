@@ -1,8 +1,20 @@
-# RFCs
+# 📐 RFCs
 
-Design proposals for Qutivex live here. Phase 0 calls for RFCs covering the
-public route API, validation/OpenAPI, plugins and DI, configuration, database
-integration, and AI/agent interfaces. None have been accepted yet.
+Design proposals for Qutivex live here. Phase 0 accepted the initial set. An
+accepted RFC records the agreed direction; implementation follows the roadmap
+phase.
+
+## Accepted RFCs
+
+| RFC | Topic | Status | Target |
+| --- | --- | --- | --- |
+| [0001](0001-public-api.md) | Public API | ✅ Accepted, implemented | Phase 2 |
+| [0002](0002-routing.md) | Routing | ✅ Accepted | Phase 3 |
+| [0003](0003-validation-openapi.md) | Validation + OpenAPI | ✅ Accepted | Phase 4 |
+| [0004](0004-plugin-di.md) | Plugins + DI | ✅ Accepted | Phase 6 |
+| [0005](0005-database.md) | Database + migrations | ✅ Accepted | Phase 7 |
+| [0006](0006-ai-agents.md) | AI, agents, workflows | ✅ Accepted | Phase 11–12 |
+| [0007](0007-configuration.md) | Configuration + settings | ✅ Accepted | Phase 5 |
 
 ## Process
 
@@ -10,9 +22,9 @@ integration, and AI/agent interfaces. None have been accepted yet.
 2. Open a pull request with status `Draft`.
 3. Discuss in the pull request and linked issue.
 4. A maintainer moves it to `Accepted`, `Rejected`, or `Superseded`.
-5. Once accepted, implementation may proceed in the relevant phase. Accepted
-   RFCs are not rewritten; follow-up changes use a new RFC or an ADR when the
-   change is operational rather than API design.
+5. Implementation proceeds in the relevant phase. Accepted RFCs are not
+   rewritten; follow-up changes use a new RFC or an ADR when the change is
+   operational rather than API design.
 
 ## Rules
 
@@ -22,13 +34,12 @@ integration, and AI/agent interfaces. None have been accepted yet.
   include a threat section.
 - Performance-motivated proposals state the workload and measurement method;
   "faster" without evidence is not an argument.
-- Do not use an RFC to lock Phase 1 scaffolding. Phase 1 records engineering
-  decisions in [`docs/decisions/`](../docs/decisions/).
+- Engineering-foundation choices live in [`docs/decisions/`](../docs/decisions/).
 
 ## Status meanings
 
 | Status | Meaning |
-| ------ | ------- |
+| --- | --- |
 | Draft | Open for discussion; not a commitment. |
 | Accepted | Agreed direction; implementation may follow. |
 | Rejected | Not planned; rationale retained. |
