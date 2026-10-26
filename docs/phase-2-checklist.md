@@ -35,7 +35,7 @@ optional module.
 | --- | --- |
 | Don't wrap every `Response` unnecessarily | Returned `Response` is passed through. |
 | Don't parse JSON unless needed | No body parsing in Phase 2. |
-| Avoid loading optional modules in core | Core has zero dependencies and no `Bun.*`. |
+| Avoid loading optional modules in core | At Phase 2 completion core had zero dependencies and no `Bun.*`. |
 | No custom router yet | Exact-match table; native routing in Phase 3. |
 | Registration before startup only | Late registration throws `LifecycleError`. |
 
@@ -92,7 +92,7 @@ Package split:
 - `@qutivex/core` — lifecycle, routes, responses, errors.
 - `@qutivex/http-bun` — `Bun.serve()` adapter.
 - `qutivex` — public umbrella with Bun wired in.
-- `@qutivex/router` — Phase 3 placeholder.
+- `@qutivex/router` — Phase 3 replaced the placeholder with the pattern matcher.
 
 ---
 
@@ -100,7 +100,7 @@ Package split:
 
 | Criterion | Evidence |
 | --- | --- |
-| Core works without database, admin, AI, or frontend imports | Boundary test: zero deps, no forbidden imports, no `Bun.*` |
+| Core works without database, admin, AI, or frontend imports | Boundary test: first-party router only, no forbidden imports, no `Bun.*` |
 | All lifecycle states are tested | `packages/core/test/app.test.ts` |
 | A real "Hello World" serves over HTTP | `examples/hello`, smoke test |
 | Graceful shutdown is safe and repeatable | Hook/idempotency tests |
@@ -139,6 +139,7 @@ Package split:
 
 ## ➡️ Next phase
 
-Phase 3 adds path params, wildcards, query/header/cookie access, middleware,
+Phase 3 added path params, wildcards, query/header/cookie access, middleware,
 route groups, 405 behavior, request IDs, streaming/SSE/WebSockets, and the full
-request context. See [RFC 0002](../RFC/0002-routing.md).
+request context. See the [Phase 3 checklist](phase-3-checklist.md). Phase 4 adds
+validation/OpenAPI.

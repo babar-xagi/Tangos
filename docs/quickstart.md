@@ -2,8 +2,9 @@
 
 Get a Qutivex app running in about **five minutes**.
 
-> **You are here:** Phase 2. The core HTTP API works. Validation, OpenAPI, the
-> CLI, database, auth, admin, and AI arrive in later phases.
+> **You are here:** Phase 3. Routing, middleware, the request context, body
+> parsing, streaming/SSE, and WebSockets work. Validation/OpenAPI, the CLI,
+> database, auth, admin, and AI arrive in later phases.
 
 ---
 
@@ -16,28 +17,18 @@ Get a Qutivex app running in about **five minutes**.
 | Git | any recent version |
 | Node.js | ❌ not required |
 
-Check Bun:
-
 ```sh
 bun --version
+# 1.4.4
 ```
-
-Expected: `1.4.4`.
 
 ---
 
-## 1️⃣ Install
+## 1️⃣ Install and run
 
 ```sh
 cd qutivex
 bun install --frozen-lockfile
-```
-
----
-
-## 2️⃣ Run the example
-
-```sh
 bun run example
 ```
 
@@ -46,28 +37,37 @@ You should see:
 ```text
   Qutivex Hello
   ➜  http://127.0.0.1:3000/
-  2 routes | 3ms
+  6 routes | 4ms
 ```
 
-Test it:
+### Try the example
 
 ```sh
 curl http://127.0.0.1:3000/
-# {"message":"Hello from Qutivex 👋","framework":"Qutivex","phase":2}
-
+curl "http://127.0.0.1:3000/hello/Ada?greeting=Welcome"
 curl http://127.0.0.1:3000/health
-# {"status":"ok","phase":2}
+curl http://127.0.0.1:3000/api/version
+curl http://127.0.0.1:3000/events
 
-curl -i http://127.0.0.1:3000/nope
-# HTTP/1.1 404 Not Found
-# {"error":{"code":"NOT_FOUND","message":"Not Found"}}
+curl -X POST http://127.0.0.1:3000/echo \
+  -H 'content-type: application/json' \
+  -d '{"message":"ping"}'
 ```
+
+| Route | Shows |
+| --- | --- |
+| `GET /` | JSON + a middleware timing header |
+| `GET /hello/:name` | Path params + query params |
+| `POST /echo` | Lazy JSON body parsing |
+| `GET /api/version` | Route groups |
+| `GET /events` | Server-Sent Events |
+| `GET /health` | A health check |
 
 Stop with `Ctrl+C`.
 
 ---
 
-## 3️⃣ Your first app
+## 2️⃣ Your first app
 
 Create `my-app.ts`:
 
@@ -76,10 +76,7 @@ import { App } from "qutivex";
 
 const app = new App({ name: "My API" });
 
-app.get("/", () => ({
-  message: "Hello, Qutivex! 👋",
-}));
-
+app.get("/", () => ({ message: "Hello, Qutivex! 👋" }));
 app.get("/health", () => ({ status: "ok" }));
 
 await app.run({ port: 3000 });
@@ -91,145 +88,268 @@ Run it:
 bun run my-app.ts
 ```
 
-That is the whole "hello world". No decorators, no config file, no boilerplate.
+No decorators, no config file, no boilerplate.
 
 ---
 
-## 4️⃣ Add routes
+## 3️⃣ Path params and query strings
 
 ```ts
-app.get("/", () => "Hello!");
-app.post("/users", () => ({ created: true }));
-app.put("/users", () => ({ replaced: true }));
-app.patch("/users", () => ({ updated: true }));
-app.delete("/users", () => undefined);
-app.options("/users", () => undefined);
-app.head("/users", () => undefined);
+app.get("/users/:id", (ctx) => ({
+  id: ctx.params.id,
+  tab: ctx.query.get("tab") ?? "profile",
+}));
+```
+
+```sh
+curl "http://127.0.0.1:3000/users/42?tab=settings"
+# {"id":"42","tab":"settings"}
+```
+
+Wildcards capture the rest of the path:
+
+```ts
+app.get("/assets/*", (ctx) => ({
+  path: ctx.params["*"],
+}));
+```
+
+Priority is **static → param → wildcard**:
+
+```ts
+app.get("/users/me", () => "static");
+app.get("/users/:id", (ctx) => `param:${ctx.params.id}`);
+app.get("/users/*", (ctx) => `wildcard:${ctx.params["*"]}`);
+```
+
+Wrong method on a known path returns **405** with an `Allow` header. Trailing
+slashes are distinct.
+
+---
+
+## 4️⃣ Read headers and cookies
+
+```ts
+app.get("/whoami", (ctx) => ({
+  userAgent: ctx.header("user-agent"),
+  session: ctx.cookie("session"),
+  allCookies: ctx.cookies,
+  requestId: ctx.requestId,
+}));
+```
+
+`x-request-id` is reused when safe, otherwise generated. Every response includes
+one.
+
+---
+
+## 5️⃣ Parse a body
+
+Body parsing is **lazy** and **cached**. The default limit is **1 MiB**.
+
+```ts
+app.post("/echo", async (ctx) => ({
+  body: await ctx.body.json(),
+}));
+```
+
+```sh
+curl -X POST http://127.0.0.1:3000/echo \
+  -H 'content-type: application/json' \
+  -d '{"message":"ping"}'
+```
+
+Other readers:
+
+```ts
+await ctx.body.text();
+await ctx.body.formData();
+await ctx.body.arrayBuffer();
+```
+
+Errors are precise:
+
+| Problem | Status |
+| --- | ---: |
+| Wrong/missing JSON content type | `415` |
+| Empty or invalid JSON | `400` |
+| Body over the limit | `413` |
+| Wrong/invalid form data | `415` / `400` |
+
+Change the limit when creating the app:
+
+```ts
+const app = new App({ maxBodyBytes: 2 * 1024 * 1024 });
+```
+
+---
+
+## 6️⃣ Add middleware
+
+```ts
+app.use(async (ctx, next) => {
+  const started = performance.now();
+  const response = await next();
+  response.headers.set("x-response-time-ms", (performance.now() - started).toFixed(2));
+  return response;
+});
 ```
 
 Rules:
 
-- Register routes **before** `run()`/`listen()`.
-- Paths must start with `/`.
-- Duplicate method + path is an error at startup.
-- **Phase 2 matches exact paths only.** `/users/:id` arrives in Phase 3.
+- Global middleware runs in registration order.
+- Call `next()` once. Calling it twice is a `500`.
+- Return a `Response` to short-circuit (auth, caching, etc.).
+- Middleware must return a `Response`.
+- Errors thrown in middleware use the same safe error handling.
 
-Chain routes if you like:
-
-```ts
-app
-  .get("/health", () => ({ status: "ok" }))
-  .get("/version", () => ({ version: "0.0.0" }));
-```
-
----
-
-## 5️⃣ Return the right thing
-
-| You return | Client receives |
-| --- | --- |
-| `{ ok: true }` | `200 application/json` |
-| `"hello"` | `200 text/plain` |
-| `new Response(...)` | Your response, unchanged |
-| `undefined` | `204 No Content` |
-| `throw HttpError.notFound()` | `404` with the standard error body |
+Group middleware:
 
 ```ts
-app.get("/text", () => "plain text");
-app.get("/json", () => ({ answer: 42 }));
-app.get("/empty", () => undefined);
-app.get("/custom", () => new Response("teapot", { status: 418 }));
-```
-
----
-
-## 6️⃣ Handle expected errors
-
-```ts
-import { HttpError } from "qutivex";
-
-app.get("/private", () => {
-  throw HttpError.unauthorized("Sign in first");
+const api = app.group("/api", {
+  middleware: [auth],
+  metadata: { section: "api" },
 });
 
-app.get("/missing", () => {
-  throw HttpError.notFound("User not found");
+api.get("/users/:id", {
+  name: "api.users.show",
+  middleware: [rateLimit],
+}, (ctx) => ({ id: ctx.params.id }));
+```
+
+Order: **global → group → route → before hooks → handler → after hooks**.
+
+---
+
+## 7️⃣ Hooks
+
+```ts
+app.before((ctx) => {
+  // Runs before the handler. Return a Response to short-circuit.
+});
+
+app.after((ctx, response) => {
+  response.headers.set("x-powered-by", "Qutivex");
+  // Return a replacement Response if needed.
 });
 ```
 
-Response:
-
-```json
-{ "error": { "code": "UNAUTHORIZED", "message": "Sign in first" } }
-```
-
-Any other thrown error becomes a **safe** `500`; the message and stack are not
-exposed.
-
----
-
-## 7️⃣ Use the request context
+Error observers:
 
 ```ts
-app.get("/whoami", (ctx) => ({
-  method: ctx.method,
-  path: ctx.path,
-  url: ctx.url.href,
-}));
-```
-
-Phase 2 context fields: `request`, `url`, `method`, `path`. Phase 3 adds
-`params`, `query`, `headers`, `cookies`, and middleware state.
-
----
-
-## 8️⃣ Start and stop cleanly
-
-```ts
-const info = await app.listen({ port: 0 }); // ephemeral port
-console.log(info.url.href);
-
-app.onShutdown(async () => {
-  // close a client, flush a queue, etc.
+app.onError((error, context) => {
+  // context.request and context.state when available.
 });
-
-await app.stop(true); // force-close connections
 ```
-
-- `run()` is an alias for `listen()`.
-- `listen()` on a running app returns the same address.
-- `stop()` is idempotent; calling it twice is safe.
-- Hooks run last-registered-first.
-- A failed hook rejects with `ServerShutdownError` and calls `onError`.
 
 ---
 
-## 9️⃣ Test without a socket
+## 8️⃣ Stream, SSE, and WebSockets
+
+### Streamed response
+
+```ts
+app.get("/stream", (ctx) => {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode("hello "));
+      controller.enqueue(encoder.encode("world"));
+      controller.close();
+    },
+  });
+  return ctx.stream(stream, { headers: { "content-type": "text/plain" } });
+});
+```
+
+### Server-Sent Events
+
+```ts
+app.get("/events", (ctx) =>
+  ctx.sse([
+    { event: "hello", data: { message: "Qutivex SSE" } },
+    { event: "done", data: "bye" },
+  ]),
+);
+```
+
+### WebSockets
+
+```ts
+app.websocket("/ws/:room", {
+  open(socket, ctx) {
+    socket.send(`joined ${ctx.params.room}`);
+  },
+  message(socket, message) {
+    socket.send(message);
+  },
+  close(socket, code, reason) {
+    // cleanup
+  },
+});
+```
+
+Normal HTTP requests to a WebSocket path receive `426 Upgrade Required`.
+
+---
+
+## 9️⃣ Cancellation and timeouts
+
+`ctx.signal` aborts when the client disconnects. Add a request timeout if you
+need one:
+
+```ts
+const app = new App({ requestTimeoutMs: 10_000 });
+
+app.get("/slow", async (ctx) => {
+  await doWork(ctx.signal);
+  return { done: true };
+});
+```
+
+A timed-out request returns `504 REQUEST_TIMEOUT` and aborts the signal.
+
+---
+
+## 🔟 Response helpers
+
+```ts
+app.get("/json", (ctx) => ctx.json({ ok: true }, { status: 201 }));
+app.get("/text", (ctx) => ctx.text("hello"));
+app.get("/html", (ctx) => ctx.html("<h1>Hello</h1>"));
+app.get("/go", (ctx) => ctx.redirect("/login", 303));
+app.get("/empty", (ctx) => ctx.noContent());
+```
+
+---
+
+## 1️⃣1️⃣ Test without a socket
 
 ```ts
 import { expect, test } from "bun:test";
 import { App } from "qutivex";
 
-test("health", async () => {
+test("user route", async () => {
   const app = new App();
-  app.get("/health", () => ({ status: "ok" }));
+  app.get("/users/:id", (ctx) => ({ id: ctx.params.id }));
 
-  const response = await app.fetch(new Request("http://localhost/health"));
+  const response = await app.fetch(new Request("http://localhost/users/42"));
 
   expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ status: "ok" });
+  expect(await response.json()).toEqual({ id: "42" });
 });
 ```
 
-`app.fetch()` uses the same routing and error behavior as the live server.
+`app.fetch()` uses the same routing, middleware, body, and error behavior as the
+live server.
 
 ---
 
-## 🔟 Next steps
+## 1️⃣2️⃣ Next steps
 
 - Read the full [App API](api/app.md).
 - Learn the [error model](api/errors.md).
-- See how the [example](../examples/hello) is put together.
+- See the [Phase 3 checklist](phase-3-checklist.md).
 - Check the [roadmap](../ROADMAP.md) for what is coming.
 - Run the quality gate: `bun run validate`.
 
@@ -239,39 +359,40 @@ test("health", async () => {
 
 ### `bun: command not found`
 
-Install Bun 1.4.4:
-
 ```sh
 curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.4"
 ```
 
 ### Port 3000 is busy
 
-Use another port:
-
 ```sh
 PORT=8080 bun run example
 ```
 
-The example defaults to `127.0.0.1` so it is not exposed to your network.
+The example binds `127.0.0.1` by default.
 
 ### Biome cannot find its native binary
 
-This usually means a Windows `node_modules` tree is being used from WSL (or the
-reverse). Reinstall inside the current environment:
+A Windows `node_modules` tree is being used from WSL (or the reverse). Reinstall:
 
 ```sh
 rm -rf node_modules
 bun install --frozen-lockfile
 ```
 
-### Type errors in the editor
+### A route returns 405
 
-Run:
+The path exists but not for that method. Check the `Allow` response header.
+
+### A body returns 413
+
+The request exceeded `maxBodyBytes` (default 1 MiB). Raise the limit deliberately
+or send less data.
+
+### Type errors in the editor
 
 ```sh
 bun run typecheck
 ```
 
-The repo pins TypeScript 7.0.2; make sure your editor uses the workspace
-version.
+The repo pins TypeScript 7.0.2; make sure your editor uses the workspace version.

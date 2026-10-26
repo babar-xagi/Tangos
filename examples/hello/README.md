@@ -1,20 +1,34 @@
-# 👋 Hello example (Phase 2)
+# 👋 Hello example (Phase 3)
 
-The smallest real Qutivex application. It proves routes, JSON responses, HEAD
-handling, graceful shutdown, and the public `qutivex` import.
+A small but complete Qutivex app: path/query params, JSON bodies, global
+middleware, a route group, and Server-Sent Events.
 
 ```ts
 import { App } from "qutivex";
 
 const app = new App({ name: "Qutivex Hello" });
 
-app.get("/", () => ({
-  message: "Hello from Qutivex 👋",
-  framework: "Qutivex",
-  phase: 2,
+app.use(async (_ctx, next) => {
+  const started = performance.now();
+  const response = await next();
+  response.headers.set("x-response-time-ms", (performance.now() - started).toFixed(2));
+  return response;
+});
+
+app.get("/hello/:name", (ctx) => ({
+  greeting: `${ctx.query.get("greeting") ?? "Hello"}, ${ctx.params.name}! 👋`,
 }));
 
-app.get("/health", () => ({ status: "ok", phase: 2 }));
+app.post("/echo", async (ctx) => ({
+  echo: await ctx.body.json(),
+}));
+
+const api = app.group("/api");
+api.get("/version", () => ({ phase: 3, version: "0.0.0" }));
+
+app.get("/events", (ctx) =>
+  ctx.sse([{ event: "hello", data: { message: "Qutivex SSE" } }]),
+);
 
 await app.run({ port: 3000 });
 ```
@@ -40,10 +54,23 @@ Then open <http://127.0.0.1:3000/>.
 
 | Method | Path | Response |
 | --- | --- | --- |
-| `GET` | `/` | Framework identity and Phase 2 status |
-| `GET` | `/health` | `{ "status": "ok", "phase": 2 }` |
-| `HEAD` | `/health` | Same headers as GET, no body |
-| any | unknown | JSON `404` error envelope |
+| `GET` | `/` | Framework identity, Phase 3 status, timing header |
+| `GET` | `/health` | `{ "status": "ok", "phase": 3 }` |
+| `GET` | `/hello/:name` | Greeting with path + query params |
+| `POST` | `/echo` | Parsed JSON body |
+| `GET` | `/api/version` | Grouped route |
+| `GET` | `/events` | `text/event-stream` with two events |
+| any | unknown | JSON `404` envelope |
+
+## 🧪 Try it
+
+```sh
+curl "http://127.0.0.1:3000/hello/Ada?greeting=Welcome"
+curl -X POST http://127.0.0.1:3000/echo \
+  -H 'content-type: application/json' \
+  -d '{"message":"ping"}'
+curl http://127.0.0.1:3000/events
+```
 
 ## 🔌 Ports
 
@@ -60,5 +87,5 @@ bun test tests/integration/example-hello.test.ts
 bun run smoke
 ```
 
-The integration test exercises the app in-process with `app.fetch()` and once
-over a real ephemeral socket.
+The integration test covers `app.fetch()` and a real ephemeral socket; the smoke
+test checks HTTP, params, bodies, groups, and SSE end to end.

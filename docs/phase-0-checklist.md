@@ -86,5 +86,6 @@ building the framework.
 
 ## ➡️ Next
 
-Phase 1 (engineering foundation) and Phase 2 (minimal HTTP core) are already
-complete. Phase 3 begins routing/context/middleware.
+Phase 1 (engineering foundation), Phase 2 (minimal HTTP core), and Phase 3
+(routing, context, middleware, HTTP) are complete. Phase 4 begins validation,
+type inference, and OpenAPI.

@@ -105,12 +105,28 @@ export class HttpError extends QutivexError {
     return new HttpError(message, { status: 409 });
   }
 
+  static payloadTooLarge(message = "Payload Too Large"): HttpError {
+    return new HttpError(message, { status: 413 });
+  }
+
+  static unsupportedMediaType(message = "Unsupported Media Type"): HttpError {
+    return new HttpError(message, { status: 415 });
+  }
+
+  static methodNotAllowed(message = "Method Not Allowed"): HttpError {
+    return new HttpError(message, { status: 405 });
+  }
+
   static unprocessableEntity(message = "Unprocessable Entity"): HttpError {
     return new HttpError(message, { status: 422 });
   }
 
   static tooManyRequests(message = "Too Many Requests"): HttpError {
     return new HttpError(message, { status: 429 });
+  }
+
+  static requestTimeout(message = "Request Timeout"): HttpError {
+    return new HttpError(message, { code: "REQUEST_TIMEOUT", expose: true, status: 504 });
   }
 
   static internal(message = "Internal Server Error"): HttpError {

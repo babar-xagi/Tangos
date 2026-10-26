@@ -1,5 +1,5 @@
 import { HttpError, QutivexError, statusTextFor } from "./errors";
-import type { HandlerResult } from "./types";
+import type { HandlerResult, HttpMethod } from "./types";
 
 const JSON_HEADERS = {
   "cache-control": "no-store",
@@ -54,6 +54,13 @@ export function notFoundResponse(): Response {
   return errorResponse(HttpError.notFound());
 }
 
+/** 405 response with an Allow header. */
+export function methodNotAllowedResponse(allowed: readonly HttpMethod[]): Response {
+  const response = errorResponse(HttpError.methodNotAllowed());
+  response.headers.set("allow", allowed.join(", "));
+  return response;
+}
+
 /** Converts a handler return value to an HTTP response. */
 export function toResponse(result: HandlerResult): Response {
   if (result instanceof Response) {
@@ -85,16 +92,4 @@ export function toResponse(result: HandlerResult): Response {
   }
 
   return new Response(body, { headers: JSON_HEADERS, status: 200 });
-}
-
-/** Returns a bodyless copy of a response for HEAD requests. */
-export function withoutBody(response: Response): Response {
-  const headers = new Headers(response.headers);
-  headers.delete("content-length");
-
-  return new Response(null, {
-    headers,
-    status: response.status,
-    statusText: response.statusText,
-  });
 }

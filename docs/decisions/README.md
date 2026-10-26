@@ -7,6 +7,7 @@ release and security posture.
 | --- | ----- | ------ |
 | [0001](0001-engineering-foundation.md) | Engineering foundation decisions | Accepted (Phase 1) |
 | [0002](0002-product-scope.md) | Product scope, license, and support | Accepted (Phase 0) |
+| [0003](0003-route-matching.md) | Route matching implementation | Accepted (Phase 3) |
 
 ## When to write an ADR
 

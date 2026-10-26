@@ -2,7 +2,7 @@
 
 > **A high-performance, batteries-included TypeScript framework for APIs, full-stack applications, and production AI systems.**
 
-**Status:** Phase 0 complete · Phase 1 complete · Phase 2 complete
+**Status:** Phase 0 complete · Phase 1 complete · Phase 2 complete · Phase 3 complete
 **Document owner:** Qutivex maintainers
 **Last updated:** 2026-10-26
 
@@ -71,7 +71,7 @@ Qutivex wins by combining:
 
 | Principle | What it means in practice |
 | --- | --- |
-| **Small core** | `@qutivex/core` has zero runtime dependencies and no Bun API usage. |
+| **Small core** | `@qutivex/core` has one first-party dependency (router), no third-party runtime dependencies, and no Bun API usage. |
 | **Opt-in capabilities** | A minimal API never loads the ORM, admin, AI, or frontend code. |
 | **One source of truth** | A validation schema drives runtime validation **and** OpenAPI. |
 | **Explicit behavior** | No hidden queries, network calls, agent permissions, or serialization magic. |

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { createApp, parsePort, startServer } from "../../examples/hello/src/server";
 
-describe("Phase 2 example app", () => {
-  test("serves the framework identity at /", async () => {
+describe("Phase 3 example app", () => {
+  test("serves the framework identity and middleware header at /", async () => {
     const app = createApp();
     const response = await app.fetch(new Request("http://localhost/"));
     const body = (await response.json()) as {
@@ -13,9 +13,10 @@ describe("Phase 2 example app", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
+    expect(response.headers.get("x-response-time-ms")).not.toBeNull();
     expect(body.message).toBe("Hello from Qutivex 👋");
     expect(body.framework).toBe("Qutivex");
-    expect(body.phase).toBe(2);
+    expect(body.phase).toBe(3);
   });
 
   test("serves a health check", async () => {
@@ -23,17 +24,57 @@ describe("Phase 2 example app", () => {
     const response = await app.fetch(new Request("http://localhost/health"));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: "ok", phase: 2 });
+    expect(await response.json()).toEqual({ phase: 3, status: "ok" });
   });
 
-  test("returns the standard 404 envelope", async () => {
+  test("uses path and query params", async () => {
     const app = createApp();
-    const response = await app.fetch(new Request("http://localhost/nope"));
+    const response = await app.fetch(new Request("http://localhost/hello/Ada?greeting=Welcome"));
+    const body = (await response.json()) as { greeting?: string; requestId?: string };
 
-    expect(response.status).toBe(404);
+    expect(body.greeting).toBe("Welcome, Ada! 👋");
+    expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  test("parses JSON bodies", async () => {
+    const app = createApp();
+    const response = await app.fetch(
+      new Request("http://localhost/echo", {
+        body: JSON.stringify({ message: "ping" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
+      echo: { message: "ping" },
+      method: "POST",
+      path: "/echo",
+    });
+  });
+
+  test("serves grouped routes and SSE", async () => {
+    const app = createApp();
+    const version = await app.fetch(new Request("http://localhost/api/version"));
+    expect(await version.json()).toEqual({ phase: 3, version: "0.0.0" });
+
+    const events = await app.fetch(new Request("http://localhost/events"));
+    expect(events.headers.get("content-type")).toContain("text/event-stream");
+    expect(await events.text()).toContain("Qutivex SSE");
+  });
+
+  test("returns the standard 404 envelope and a bodyless HEAD", async () => {
+    const app = createApp();
+    const missing = await app.fetch(new Request("http://localhost/nope"));
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toEqual({
       error: { code: "NOT_FOUND", message: "Not Found" },
     });
+
+    const head = await app.fetch(new Request("http://localhost/health", { method: "HEAD" }));
+    expect(head.status).toBe(200);
+    expect(await head.text()).toBe("");
   });
 
   test("parses PORT values and rejects invalid ones", () => {
@@ -56,7 +97,7 @@ describe("Phase 2 example app", () => {
 
       const response = await fetch(new URL("health", info.url));
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ status: "ok", phase: 2 });
+      expect(await response.json()).toEqual({ phase: 3, status: "ok" });
     } finally {
       await app.stop(true);
     }

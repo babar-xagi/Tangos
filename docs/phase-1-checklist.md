@@ -97,4 +97,4 @@ not frozen in this document; CI is the source of truth for a given commit.
 ## Next phase
 
 Phase 2 is complete: see the [Phase 2 checklist](phase-2-checklist.md). Phase 3
-adds path params, middleware, the full request context, and streaming.
+is also complete; Phase 4 begins validation, type inference, and OpenAPI.

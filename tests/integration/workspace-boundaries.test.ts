@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { App as CoreApp } from "@qutivex/core";
 import { bunAdapter } from "@qutivex/http-bun";
-import { PACKAGE as ROUTER } from "@qutivex/router";
+import { compileRoutePattern, matchRoutePattern } from "@qutivex/router";
 import { App as PublicApp } from "qutivex";
 
 interface PackageManifest {
@@ -38,18 +38,22 @@ describe("Bun workspace wiring", () => {
     expect(typeof CoreApp).toBe("function");
     expect(typeof PublicApp).toBe("function");
     expect(typeof bunAdapter).toBe("function");
-    expect(ROUTER.name).toBe("@qutivex/router");
+    expect(matchRoutePattern(compileRoutePattern("/users/:id"), "/users/42")).toEqual({
+      params: { id: "42" },
+    });
   });
 
   test("public App extends the core App and wires in Bun", () => {
     expect(Object.getPrototypeOf(PublicApp)).toBe(CoreApp);
   });
 
-  test("keeps core free of runtime dependencies", async () => {
+  test("keeps core's dependency surface limited to the router", async () => {
     const core = await readManifest("packages/core/package.json");
+    const router = await readManifest("packages/router/package.json");
 
-    expect(core.dependencies ?? {}).toEqual({});
+    expect(core.dependencies).toEqual({ "@qutivex/router": "workspace:*" });
     expect(core.peerDependencies ?? {}).toEqual({});
+    expect(router.dependencies ?? {}).toEqual({});
   });
 
   test("keeps core independent of adapters and optional modules", async () => {
@@ -57,7 +61,6 @@ describe("Bun workspace wiring", () => {
     expect(files.length).toBeGreaterThan(0);
 
     const forbidden = [
-      "@qutivex/router",
       "@qutivex/http-bun",
       "@qutivex/validation",
       "@qutivex/openapi",

@@ -9,6 +9,30 @@ published release.
 
 ### Added
 
+#### Phase 3 — Routing, context, middleware, and HTTP
+
+- `@qutivex/router` pattern compiler: static, `:param`, terminal `*`, priority,
+  conflict keys, and group prefix joining.
+- Path params, wildcards, route groups, route names, metadata, and introspection.
+- 405 Method Not Allowed with `Allow`; HEAD fallback and body stripping.
+- Rich request context: params, query, headers, cookies, request ID, logger,
+  request state, abort signal, lazy `json/text/formData/arrayBuffer` bodies.
+- Body limits (1 MiB default) with header + stream enforcement, content-type
+  checks, malformed JSON/form errors, and 413/415 responses.
+- Global, group, and route middleware; before/after hooks; error hook method.
+- Double-`next()` and invalid middleware-result protection.
+- Request timeouts (`requestTimeoutMs`) with 504 + aborted signal.
+- Response helpers: `json`, `text`, `html`, `redirect`, `stream`, `sse`,
+  `noContent`.
+- Server-Sent Events with sync/async sources and correct wire formatting.
+- WebSocket routes with params, query, request ID, binary messages, 426
+  upgrade-required behavior, and error close (`1011`).
+- Phase 3 example routes (params, body, middleware timing, group, SSE) and
+  smoke test.
+- Phase 3 checklist, updated API/quickstart/architecture docs, and ADR 0003 for
+  route matching.
+- 179 tests, 99.62% line coverage.
+
 #### Phase 2 — Minimal HTTP core
 
 - Public `qutivex` package: `new App()` with the Bun adapter wired in.
@@ -28,7 +52,7 @@ published release.
   clients, HEAD behavior, and repeated shutdown.
 - Benchmark harness now compares native Bun JSON and a Qutivex JSON route
   (still no published performance claims).
-- 89 tests, 100% function/line coverage.
+- 89 tests, 100% function/line coverage at Phase 2 completion.
 
 #### Phase 0 — Product definition and technical specification
 

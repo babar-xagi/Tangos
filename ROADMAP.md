@@ -15,7 +15,8 @@
 > | 0 — Product definition and technical specification | ✅ Complete | [Checklist](docs/phase-0-checklist.md) |
 > | 1 — Repository and engineering foundation | ✅ Complete | [Checklist](docs/phase-1-checklist.md) |
 > | 2 — Minimal HTTP core | ✅ Complete | [Checklist](docs/phase-2-checklist.md) |
-> | 3 — Routing, context, middleware | 🚧 Next | [RFC 0002](RFC/0002-routing.md) |
+> | 3 — Routing, context, middleware | ✅ Complete | [Checklist](docs/phase-3-checklist.md) |
+> | 4 — Validation, type inference, OpenAPI | 🚧 Next | [RFC 0003](RFC/0003-validation-openapi.md) |
 >
 > The checkboxes below remain the original planning record. Completion evidence
 > lives in the phase checklists and CI, not in unchecked plan boxes.

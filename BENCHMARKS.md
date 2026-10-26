@@ -2,9 +2,10 @@
 
 **Status: harness only. No Qutivex performance claims have been made.**
 
-Phase 2 adds a Qutivex route to the harness, but numbers are not published,
+Phase 2 added a Qutivex route to the harness, but numbers are not published,
 cherry-picked, or compared to other frameworks. The purpose is to make overhead
-visible and reproducible before optimization.
+visible and reproducible before optimization. Phase 3 features are not yet
+separate benchmark scenarios.
 
 Methodology follows [ROADMAP.md](ROADMAP.md) §8.
 
@@ -68,21 +69,24 @@ normalization, and error handling—not a synthetic wrapper.
 
 ## 📋 Planned workloads
 
-| # | Workload | Earliest phase |
+The Phase 3 features below exist, but the harness still measures only the JSON
+route. They are added as benchmark scenarios when the performance work begins.
+
+| # | Workload | Status |
 | ---: | --- | --- |
-| 1 | Plain text response | ✅ Phase 2 |
-| 2 | Small JSON response | ✅ Phase 2 |
-| 3 | Static route | Phase 3 |
-| 4 | Parameterized route | Phase 3 |
-| 5 | Query-string parsing | Phase 3 |
-| 6 | JSON body parsing | Phase 4 |
-| 7 | Schema validation | Phase 4 |
-| 8 | Middleware chain | Phase 3 |
-| 9 | Authenticated endpoint | Phase 8 |
-| 10 | Database-backed endpoint | Phase 7 |
-| 11 | Streaming/SSE endpoint | Phase 3 |
-| 12 | WebSocket echo/broadcast | Phase 3 |
-| 13 | Sustained concurrency soak | Phase 15 |
+| 1 | Plain text response | ✅ in harness |
+| 2 | Small JSON response | ✅ in harness (Bun + Qutivex) |
+| 3 | Static route | ✅ feature; not in harness |
+| 4 | Parameterized route | ✅ feature; not in harness |
+| 5 | Query-string parsing | ✅ feature; not in harness |
+| 6 | JSON body parsing | ⏳ Phase 4 |
+| 7 | Schema validation | ⏳ Phase 4 |
+| 8 | Middleware chain | ✅ feature; not in harness |
+| 9 | Authenticated endpoint | ⏳ Phase 8 |
+| 10 | Database-backed endpoint | ⏳ Phase 7 |
+| 11 | Streaming/SSE endpoint | ✅ feature; not in harness |
+| 12 | WebSocket echo/broadcast | ✅ feature; not in harness |
+| 13 | Sustained concurrency soak | ⏳ Phase 15 |
 
 ---
 

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Phase 2 example: a tiny Qutivex application.",
+  "description": "Phase 3 example: params, JSON bodies, middleware, groups, and SSE.",
   "license": "MIT",
   "dependencies": {
     "qutivex": "workspace:*"

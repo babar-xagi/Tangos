@@ -1,9 +1,15 @@
 # RFC 0002: Routing
 
-- **Status:** Accepted ✅ (Phase 2 exact router; Phase 3 expansion)
+- **Status:** Accepted ✅ (implemented in Phase 3)
 - **Target:** Phase 3
 - **Author:** Qutivex maintainers
 - **Created:** 2026-10-26
+
+> **Implementation note:** Phase 3 implemented the pattern compiler and matcher
+> in `@qutivex/router` instead of configuring Bun's native route table. The
+> matcher supports static/param/wildcard priority, groups, metadata, 405, and
+> WebSocket matching. Benchmark comparison with native routing is still pending;
+> see [ADR 0003](../docs/decisions/0003-route-matching.md).
 
 ## Summary
 
@@ -24,7 +30,7 @@ native router insufficient.
 - No hidden route-level behavior.
 - Introspection for CLI (`qutivex routes`) and OpenAPI.
 
-## Phase 2 baseline
+## Phase 2 baseline (historical)
 
 - Exact path equality after `URL.pathname`.
 - Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD.
@@ -89,16 +95,12 @@ app.get("/users/:id", {
   name: "users.show",
   tags: ["users"],
   summary: "Get one user",
-  handler: showUser,
-});
+  metadata: { auth: true },
+}, showUser);
 ```
 
-> This overloaded shape is introduced only when validation options land in
-> Phase 4. Phase 3 may expose metadata through a separate `route()` method to
-> avoid a breaking overload.
-
-Introspection returns method, path, name, tags, and handler presence—never
-handler source. Used by `qutivex routes` and OpenAPI.
+Phase 3 exposes `name` and free-form `metadata` through `app.routes`. OpenAPI
+tags/summaries arrive with Phase 4.
 
 ### Method behavior
 

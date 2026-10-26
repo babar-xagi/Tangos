@@ -1,74 +1,168 @@
+import {
+  compareRoutePatterns,
+  compileRoutePattern,
+  isStaticPattern,
+  matchRoutePattern,
+  type RoutePattern,
+  routePatternKey,
+} from "@qutivex/router";
 import { ConfigurationError } from "./errors";
-import type { Handler, HttpMethod, RouteInfo } from "./types";
+import type { Handler, HttpMethod, RouteInfo, RouteOptions } from "./types";
+import { HTTP_METHODS } from "./types";
 
 interface RouteEntry {
   readonly handler: Handler;
+  readonly method: HttpMethod;
+  readonly options: RouteOptions;
+  readonly path: string;
+  readonly pattern: RoutePattern;
 }
 
-function validatePath(path: string): void {
-  if (typeof path !== "string" || path.length === 0) {
-    throw new ConfigurationError("Route paths must be non-empty strings.");
-  }
-  if (!path.startsWith("/")) {
-    throw new ConfigurationError(`Route path "${path}" must start with "/".`);
-  }
-  if (path.includes("?") || path.includes("#")) {
-    throw new ConfigurationError(
-      `Route path "${path}" must not include a query string or fragment.`,
-    );
-  }
-  if (/\s/.test(path)) {
-    throw new ConfigurationError(`Route path "${path}" must not contain whitespace.`);
-  }
+export interface RouteMatch {
+  readonly entry: RouteEntry;
+  readonly params: Readonly<Record<string, string>>;
 }
 
-/** Exact-match route table for the Phase 2 core. */
+/** Route registry with static, parameter, wildcard, and metadata support. */
 export class RouteTable {
-  readonly #routes = new Map<HttpMethod, Map<string, RouteEntry>>();
+  readonly #entries: RouteEntry[] = [];
+  readonly #names = new Map<string, RouteEntry>();
+  readonly #patterns = new Map<HttpMethod, RouteEntry[]>();
+  readonly #shapes = new Map<string, RouteEntry>();
+  readonly #static = new Map<HttpMethod, Map<string, RouteEntry>>();
 
-  add(method: HttpMethod, path: string, handler: Handler): void {
-    validatePath(path);
+  add(method: HttpMethod, path: string, handler: Handler, options: RouteOptions = {}): void {
+    let pattern: RoutePattern;
+    try {
+      pattern = compileRoutePattern(path);
+    } catch (error) {
+      throw new ConfigurationError((error as Error).message, { cause: error });
+    }
 
     if (typeof handler !== "function") {
       throw new ConfigurationError(`Handler for ${method} ${path} must be a function.`);
     }
 
-    let methodRoutes = this.#routes.get(method);
-    if (methodRoutes === undefined) {
-      methodRoutes = new Map();
-      this.#routes.set(method, methodRoutes);
+    for (const middleware of options.middleware ?? []) {
+      if (typeof middleware !== "function") {
+        throw new ConfigurationError(`Middleware for ${method} ${path} must be a function.`);
+      }
     }
 
-    if (methodRoutes.has(path)) {
-      throw new ConfigurationError(`Duplicate route: ${method} ${path} is already registered.`);
+    const shapeKey = `${method}\u0000${routePatternKey(pattern)}`;
+    const conflict = this.#shapes.get(shapeKey);
+    if (conflict !== undefined) {
+      throw new ConfigurationError(
+        `Conflicting route: ${method} ${path} overlaps ${conflict.method} ${conflict.path}.`,
+      );
     }
 
-    methodRoutes.set(path, { handler });
-  }
-
-  has(method: HttpMethod, path: string): boolean {
-    return this.#routes.get(method)?.has(path) ?? false;
-  }
-
-  match(method: HttpMethod, path: string): Handler | undefined {
-    return this.#routes.get(method)?.get(path)?.handler;
-  }
-
-  get size(): number {
-    let total = 0;
-    for (const methodRoutes of this.#routes.values()) {
-      total += methodRoutes.size;
+    if (options.name !== undefined) {
+      if (typeof options.name !== "string" || options.name.trim() === "") {
+        throw new ConfigurationError(`Route name for ${method} ${path} must be non-empty.`);
+      }
+      if (/\s/.test(options.name)) {
+        throw new ConfigurationError(`Route name "${options.name}" must not contain whitespace.`);
+      }
+      const named = this.#names.get(options.name);
+      if (named !== undefined) {
+        throw new ConfigurationError(
+          `Duplicate route name "${options.name}" on ${named.method} ${named.path}.`,
+        );
+      }
     }
-    return total;
+
+    const entry: RouteEntry = {
+      handler,
+      method,
+      options,
+      path,
+      pattern,
+    };
+
+    this.#shapes.set(shapeKey, entry);
+    this.#entries.push(entry);
+
+    if (options.name !== undefined) {
+      this.#names.set(options.name, entry);
+    }
+
+    if (isStaticPattern(pattern)) {
+      let methodRoutes = this.#static.get(method);
+      if (methodRoutes === undefined) {
+        methodRoutes = new Map();
+        this.#static.set(method, methodRoutes);
+      }
+      methodRoutes.set(path, entry);
+      return;
+    }
+
+    let methodPatterns = this.#patterns.get(method);
+    if (methodPatterns === undefined) {
+      methodPatterns = [];
+      this.#patterns.set(method, methodPatterns);
+    }
+    methodPatterns.push(entry);
+    methodPatterns.sort((left, right) => compareRoutePatterns(left.pattern, right.pattern));
+  }
+
+  match(method: HttpMethod, pathname: string): RouteMatch | undefined {
+    const exact = this.#static.get(method)?.get(pathname);
+    if (exact !== undefined) {
+      return { entry: exact, params: {} };
+    }
+
+    for (const entry of this.#patterns.get(method) ?? []) {
+      const matched = matchRoutePattern(entry.pattern, pathname);
+      if (matched !== undefined) {
+        return { entry, params: matched.params };
+      }
+    }
+
+    return undefined;
+  }
+
+  /** Methods that match this path. GET implies HEAD for the Allow header. */
+  allowedMethods(pathname: string): readonly HttpMethod[] {
+    const allowed = new Set<HttpMethod>();
+
+    for (const method of HTTP_METHODS) {
+      if (this.match(method, pathname) !== undefined) {
+        allowed.add(method);
+      }
+    }
+
+    if (allowed.has("GET") && !allowed.has("HEAD")) {
+      allowed.add("HEAD");
+    }
+
+    return HTTP_METHODS.filter((method) => allowed.has(method));
   }
 
   list(): readonly RouteInfo[] {
-    const routes: RouteInfo[] = [];
-    for (const [method, methodRoutes] of this.#routes) {
-      for (const path of methodRoutes.keys()) {
-        routes.push({ method, path });
+    return this.#entries.map((entry) => {
+      const info: {
+        method: HttpMethod;
+        path: string;
+        name?: string;
+        metadata?: Readonly<Record<string, unknown>>;
+      } = {
+        method: entry.method,
+        path: entry.path,
+      };
+
+      if (entry.options.name !== undefined) {
+        info.name = entry.options.name;
       }
-    }
-    return routes;
+      if (entry.options.metadata !== undefined) {
+        info.metadata = entry.options.metadata;
+      }
+
+      return info;
+    });
+  }
+
+  get size(): number {
+    return this.#entries.length;
   }
 }

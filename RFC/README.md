@@ -8,8 +8,8 @@ phase.
 
 | RFC | Topic | Status | Target |
 | --- | --- | --- | --- |
-| [0001](0001-public-api.md) | Public API | ✅ Accepted, implemented | Phase 2 |
-| [0002](0002-routing.md) | Routing | ✅ Accepted | Phase 3 |
+| [0001](0001-public-api.md) | Public API | ✅ Implemented (Phase 2–3) | Phase 2+ |
+| [0002](0002-routing.md) | Routing | ✅ Implemented (Phase 3) | Phase 3 |
 | [0003](0003-validation-openapi.md) | Validation + OpenAPI | ✅ Accepted | Phase 4 |
 | [0004](0004-plugin-di.md) | Plugins + DI | ✅ Accepted | Phase 6 |
 | [0005](0005-database.md) | Database + migrations | ✅ Accepted | Phase 7 |

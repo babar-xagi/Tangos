@@ -4,7 +4,7 @@ TypeScript is a product feature, so tests cover **behavior and types**. Every
 public API needs documented behavior, unit or integration tests, and type-level
 tests where inference or read-only contracts matter.
 
-Current state: **89 tests, 100% functions, 100% lines.**
+Current state: **179 tests, 99.62% lines, 98.99% functions.**
 
 ---
 
@@ -12,11 +12,12 @@ Current state: **89 tests, 100% functions, 100% lines.**
 
 | Layer | Location | Runner | Purpose |
 | --- | --- | --- | --- |
-| Unit | `packages/core/test/`, `tests/unit/` | `bun test` | Routes, response semantics, errors, lifecycle, concurrency, benchmark stats |
-| Adapter | `packages/http-bun/test/` | `bun test` | Real `Bun.serve()`, request forwarding, port conflicts, repeated stop |
-| Integration | `tests/integration/` | `bun test` | Real sockets, example app, aborted clients, package boundaries, repository policy |
-| Type-level | `tests/types/*.test-d.ts` | `tsc --noEmit` | Public types, inference, `@ts-expect-error`, read-only members |
-| End-to-end | `scripts/smoke-example.ts` | `bun run smoke` | Starts the example and asserts real HTTP responses |
+| Router unit | `packages/router/test/` | `bun test` | Patterns, priority, conflict keys, group joins |
+| Core unit | `packages/core/test/` | `bun test` | Routing, context, middleware, bodies, hooks, SSE |
+| Adapter unit | `packages/http-bun/test/` | `bun test` | Real `Bun.serve()`, request forwarding, port conflicts |
+| Integration | `tests/integration/` | `bun test` | Example app, 405, WebSockets, aborted clients, docs links |
+| Type-level | `tests/types/*.test-d.ts` | `tsc --noEmit` | Public types, inference, read-only members |
+| End-to-end | `scripts/smoke-example.ts` | `bun run smoke` | Real HTTP + params + body + SSE smoke test |
 | Performance | `benchmarks/http/` | `bun run bench` | Local harness; not a CI performance gate yet |
 
 ---
@@ -45,8 +46,8 @@ bun run validate            # everything CI runs
 - Test files are excluded from coverage.
 - Do not lower the threshold to land a feature. Add tests or isolate genuinely
   unreachable glue and document it.
-- Current Phase 2 coverage is **100% functions and lines**. Keep it there unless
-  a documented exception exists.
+- Current Phase 3 coverage: **99.62% lines, 98.99% functions**. Keep it above
+  90% and prefer improving it with real behavior tests.
 - CI uploads the LCOV report on Linux.
 
 ---
@@ -63,46 +64,49 @@ bun run validate            # everything CI runs
 - A test that starts a server binds `127.0.0.1:0` and stops it in `finally`.
 - Clean up timers, sockets, and temporary files. Do not leak handles.
 - Prefer `app.fetch()` for in-process behavior; use a real socket when the test
-  is specifically about the HTTP stack.
+  is specifically about HTTP or WebSockets.
 - Error tests assert **status and the JSON envelope**, not only status.
+- Body tests cover content-type, limits, malformed input, and caching.
+- WebSocket tests use the real client and assert close codes/handler errors.
 
 ### Type-level tests
 
 - Put files in `tests/types/` with a `.test-d.ts` suffix.
 - Checked by `tsc`, not executed by `bun test`.
 - Use exported `type` aliases to avoid unused-local errors.
-- Put `@ts-expect-error` inside a function that is never called, so accidental
-  execution cannot mutate state.
+- Put `@ts-expect-error` inside a function that is never called.
 - Test both directions: valid usage compiles; invalid usage is rejected.
-- Keep type tests focused on public contracts, not private helpers.
+- Keep type tests focused on public contracts.
 
 ### Repository policy tests
 
 `tests/integration/repository-policy.test.ts` turns foundational rules into
 tests: required docs, the single Bun pin, license consistency, package privacy
-and versions, and the CI quality gate. Change the rule and the test together.
+and versions, and the CI quality gate.
 
 ### Package boundary tests
 
 `tests/integration/workspace-boundaries.test.ts` enforces the dependency
-direction: core has zero dependencies and no `Bun.*`; the adapter depends only
-on core; the umbrella depends only on core + adapter.
+direction: core may depend only on router; the adapter depends only on core; the
+umbrella depends only on core + adapter; core has no `Bun.*`.
 
 ---
 
-## 🔬 Key Phase 2 scenarios
+## 🔬 Key Phase 3 scenarios
 
 | Scenario | Why it matters |
 | --- | --- |
-| Every HTTP method | Method registration is easy to break. |
-| Return values | Explicit response semantics are a core promise. |
-| Safe 500s | Internal messages must never reach clients. |
-| HEAD fallback + stripping | Correct HTTP without duplicate handlers. |
-| Startup failure / port conflict | Fail loudly, not silently. |
-| Concurrent `listen` / `stop` | Lifecycle must not race. |
-| Shutdown hook order + failures | Graceful teardown must be reliable. |
-| Aborted client | One disconnect must not break the server. |
-| 50 in-process / 25 socket concurrent requests | Context isolation. |
+| Static/param/wildcard priority | Wrong precedence breaks every router. |
+| 405 + Allow | Correct HTTP semantics. |
+| Malformed percent-encoding | Safe 400, no crash. |
+| Group prefix + metadata merge | Large apps depend on predictable composition. |
+| Middleware order + short-circuit | Auth/logging correctness. |
+| Double `next()` / invalid result | Prevent silent pipeline bugs. |
+| Body limits + content types | Resource safety and clear errors. |
+| Client abort + timeout | Lifecycle correctness under stress. |
+| SSE formatting + stream errors | Streaming clients depend on the wire format. |
+| WebSocket upgrade/426/close/error | Real-time behavior is not optional. |
+| Request state isolation | No cross-request leakage. |
 
 ---
 
@@ -123,10 +127,11 @@ A failure at any step fails the job. `bun run validate` mirrors the gate locally
 
 ## 🔭 What to add in later phases
 
-- Property/fuzz tests for route parsing and validation boundaries.
-- OpenAPI snapshot/contract tests with an independent validator.
+- Validation/OpenAPI snapshots with an independent validator.
+- Property/fuzz tests for route parsing and body limits.
 - Database tests against disposable databases and a SQLite parity matrix.
 - Auth/session regression tests: CSRF, fixation, revocation.
 - Agent/tool permission and prompt-injection tests with mock providers.
 - Performance regression thresholds after a stable benchmark baseline exists.
+- WebSocket backpressure/message-limit tests.
 - Multi-platform support matrix tests (macOS, database versions).

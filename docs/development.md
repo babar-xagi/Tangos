@@ -1,6 +1,7 @@
 # 🛠️ Development guide
 
-> **Project status:** Phase 2 complete. The HTTP core is real; later phases are not implemented yet.
+> **Project status:** Phase 3 complete. Routing, middleware, context, bodies,
+> streaming/SSE, and WebSockets work; later phases are not implemented yet.
 
 ## 🧰 Toolchain
 

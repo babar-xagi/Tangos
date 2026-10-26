@@ -8,10 +8,13 @@ export {
   ServerStartError,
   statusTextFor,
 } from "./errors";
+export { type GroupOptions, RouteGroup } from "./group";
 export type {
   AdapterStartOptions,
+  AfterHook,
   AppOptions,
   AppState,
+  BeforeHook,
   ErrorContext,
   ErrorHandler,
   Handler,
@@ -21,10 +24,23 @@ export type {
   HttpServerAdapter,
   JsonObject,
   ListenOptions,
+  LogFields,
+  Logger,
   MaybePromise,
+  Middleware,
+  Next,
+  RequestBody,
   RequestContext,
+  ResponseBody,
   RouteInfo,
+  RouteOptions,
   RunningAppInfo,
+  ServerSentEvent,
+  ServerSentEventSource,
   ShutdownHook,
+  WebSocketConnection,
+  WebSocketContext,
+  WebSocketHandlers,
+  WebSocketMatch,
 } from "./types";
 export { HTTP_METHODS } from "./types";

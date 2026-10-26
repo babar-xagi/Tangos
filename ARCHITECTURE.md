@@ -1,11 +1,10 @@
-# 🏛️ Qutivex architecture — Phase 2
+# 🏛️ Qutivex architecture — Phase 3
 
-> **Scope:** implementation architecture as of Phase 2. Product scope and public
+> **Scope:** implementation architecture as of Phase 3. Product scope and public
 > API commitments live in [RFC 0001](RFC/0001-public-api.md) and
-> [VISION.md](VISION.md). This document describes what exists now, not the full
-> future system.
+> [VISION.md](VISION.md).
 
-**Status:** 🟢 Phase 0, 1, and 2 complete · 🚧 Phase 3 next
+**Status:** 🟢 Phases 0–3 complete · 🚧 Phase 4 next
 
 ---
 
@@ -13,13 +12,13 @@
 
 | Constraint | Consequence |
 | --- | --- |
-| **Bun-first** | `Bun.serve()` is the only HTTP engine. No cross-runtime abstraction. |
-| **Small core** | `@qutivex/core` has zero dependencies and never imports `Bun.*`. |
+| **Bun-first** | `Bun.serve()` is the only HTTP engine. |
+| **Small core** | Core has one first-party dependency (`@qutivex/router`), no third-party runtime dependencies, and no `Bun.*` calls. |
 | **Opt-in modules** | A minimal API does not load database, admin, AI, or frontend code. |
-| **Explicit behavior** | No hidden body parsing, serialization magic, or global state. |
+| **Explicit behavior** | Body parsing is lazy and opt-in; serialization is predictable. |
 | **Safe errors** | One envelope; no internal messages, stacks, or causes in responses. |
 | **Adapter boundary** | Runtime details sit behind `HttpServerAdapter`. |
-| **Measured performance** | A harness exists before any claim is published. |
+| **Measured performance** | A harness exists; no performance claims are published. |
 
 ---
 
@@ -35,118 +34,170 @@
               ▼                                ▼
      ┌─────────────────┐              ┌──────────────────┐
      │ @qutivex/http-bun│─────────────▶│   @qutivex/core  │
-     │ Bun.serve bridge │              │ App, routes,     │
-     └─────────────────┘              │ errors, types    │
+     │ Bun.serve + WS   │              │ App, context,    │
+     └─────────────────┘              │ middleware, SSE  │
+                                      └────────┬─────────┘
+                                               │
+                                      ┌────────▼─────────┐
+                                      │ @qutivex/router  │
+                                      │ patterns, match  │
                                       └──────────────────┘
-                                                ▲
-                                                │ Phase 3
-                                      ┌─────────────────┐
-                                      │ @qutivex/router │
-                                      └─────────────────┘
 ```
 
 | Package | Responsibility | Runtime deps |
 | --- | --- | --- |
-| `@qutivex/core` | App lifecycle, exact-match route table, response normalization, errors, shutdown hooks, adapter contract | **none** |
-| `@qutivex/http-bun` | `Bun.serve()` adapter, server handle, startup error wrapping | `@qutivex/core` |
-| `qutivex` | Public import; `App` with Bun adapter wired in; re-exports core contracts | `core`, `http-bun` |
-| `@qutivex/router` | Phase 3 route params, groups, introspection | none yet (placeholder) |
+| `@qutivex/router` | Path compilation, matching, specificity, conflict keys, group joins | **none** |
+| `@qutivex/core` | App lifecycle, routing table, context, middleware, bodies, errors, SSE, WebSocket registry | `@qutivex/router` |
+| `@qutivex/http-bun` | `Bun.serve()` adapter, WebSocket bridge, startup errors | `@qutivex/core` |
+| `qutivex` | Public import; Bun adapter wired in; core contracts re-exported | `core`, `http-bun` |
 
-Boundaries are enforced by
-[`tests/integration/workspace-boundaries.test.ts`](tests/integration/workspace-boundaries.test.ts):
-core cannot import another package or use `Bun.*`; the adapter may import core;
-the umbrella may import core and the adapter.
+Core has **no third-party runtime dependencies** and no Bun APIs. Boundaries are
+enforced by
+[`tests/integration/workspace-boundaries.test.ts`](tests/integration/workspace-boundaries.test.ts).
 
 ---
 
-## 🔁 Request flow
+## 🔁 HTTP request flow
 
 ```text
-Bun.serve(fetch)
+Bun.serve fetch
       │
       ▼
-http-bun adapter ──▶ App.fetch(request)
-                         │
-                         ├─ parse URL, uppercase method
-                         ├─ HEAD? use explicit HEAD or fall back to GET
-                         ├─ RouteTable.match(method, path)
-                         │     └─ miss ──▶ 404 envelope
-                         ├─ build RequestContext
-                         ├─ await handler(ctx)
-                         ├─ toResponse(result)
-                         │     ├─ Response passthrough
-                         │     ├─ string  → text/plain
-                         │     ├─ undefined → 204
-                         │     └─ JSON value → application/json
-                         ├─ HEAD? strip body
-                         └─ catch ──▶ onError? → safe error envelope
+WebSocket route? ── yes ──▶ server.upgrade(data = handlers + context)
+      │ no                        │
+      ▼                           ▼
+App.fetch(request)          WS open/message/close/drain
+      │
+      ├─ request ID, URL, method
+      ├─ route method (HEAD → GET fallback)
+      ├─ RouteTable.match
+      │     ├─ miss + other methods → 405 + Allow
+      │     └─ miss → 404 envelope
+      ├─ AbortController (client abort + timeout)
+      ├─ RequestContext (params, query, cookies, body, logger, state)
+      ├─ middleware chain (global → group → route)
+      ├─ before hooks
+      ├─ handler → normalize result
+      ├─ after hooks
+      ├─ timeout race (optional)
+      └─ finalize: x-request-id + HEAD body stripping
 ```
 
-There is **no middleware layer, body parser, or serializer** in Phase 2. Those
-are deliberately later phases.
+Exceptions anywhere in the chain are normalized into the standard error
+envelope. Error observers never break the response.
 
 ---
 
-## 🔄 Lifecycle state machine
+## 🛣️ Routing
+
+`@qutivex/router` compiles paths into segments:
+
+```ts
+type RouteSegment =
+  | { kind: "static"; value: string }
+  | { kind: "param"; name: string }
+  | { kind: "wildcard" };
+```
+
+Matching:
+
+- Exact static routes use a method → path map.
+- Parameterized/wildcard routes use a sorted list.
+- Priority: static > param > wildcard, left to right.
+- `HEAD` falls back to `GET` when no HEAD route matches.
+- 405 is returned when the path matches another method; `Allow` includes implicit
+  HEAD for GET.
+- Malformed percent-encoding becomes `400 INVALID_PATH_ENCODING`.
+- Duplicate/ambiguous shapes and duplicate names fail at startup.
+
+`RouteTable` stores handler, method, path, name, metadata, and route middleware.
+Groups merge their prefix, middleware, and metadata into route options.
+
+Implementation decision and benchmarks pending:
+[ADR 0003](docs/decisions/0003-route-matching.md).
+
+---
+
+## 🧠 Request context
+
+Created per request:
+
+| Concern | Implementation |
+| --- | --- |
+| Request data | `Request`, `URL`, method, path |
+| Params | Router match result |
+| Query | `url.searchParams` |
+| Headers | Native `Headers` |
+| Cookies | Parsed once; first name wins |
+| Body | Lazy `RequestBody` with one cached byte buffer |
+| Limits | `maxBodyBytes` (default 1 MiB) |
+| Content types | JSON/`+json`, multipart, URL-encoded enforcement |
+| Request ID | Safe incoming `x-request-id` or UUID |
+| Logger | Bound with request ID, method, path |
+| State | Per-request `Map` |
+| Signal | `AbortController` fed by client abort + timeout |
+
+The context also exposes response helpers (`json`, `text`, `html`, `redirect`,
+`stream`, `sse`, `noContent`).
+
+---
+
+## 🧱 Middleware and hooks
 
 ```text
-                  register route
-created ─────────────────────────▶ configured
-   │                                   │
-   │            listen()/run()          │
-   └──────────────┬────────────────────┘
-                  ▼
-               starting
-                  │ success            ┌─────────────┐
-                  ├───────────────────▶│   running   │
-                  │ failure            └──────┬──────┘
-                  ▼                           │ stop()
-               failed                         ▼
-                  │                      stopping
-                  │                           │ success
-                  │                           ▼
-                  │                       stopped
-                  │ failure
-                  └──────────────────▶ failed
-
-stop() before start ──────────────────▶ stopped
+global middleware → group middleware → route middleware
+  → before hooks → handler → after hooks → response
 ```
 
-- `state` is publicly readable.
-- Routes are frozen once startup begins.
-- `stop()` is idempotent; concurrent stops share one shutdown.
-- Shutdown order: stop accepting → server stop → hooks (reverse) → terminal.
-- A hook/server-stop error is reported via `onError` and rejects with
-  `ServerShutdownError`.
-- Apps cannot be restarted after `stopped`/`failed`.
+- Middleware signature: `(ctx, next) => Response | Promise<Response>`.
+- `next()` may be called once; a second call is a `500`.
+- Short-circuit by returning without `next()`.
+- Middleware must return a `Response`.
+- Errors use the same safe path as handlers.
+- Before hooks can short-circuit; after hooks can replace the response.
+- Error hooks are observers and cannot break responses.
+- Configuration is frozen at startup (routes, middleware, hooks, WebSockets).
 
 ---
 
-## 📤 Response semantics
+## 🌐 HTTP capabilities
 
-| Handler returns | Result |
+| Capability | Status |
 | --- | --- |
-| `Response` | Unchanged |
-| `string` | `200 text/plain; charset=utf-8` |
-| JSON value | `200 application/json; charset=utf-8` |
-| `undefined` | `204 No Content` |
-| Throws `HttpError` | Status/code; 4xx messages exposed |
-| Throws anything else | `500` generic; original passed to `onError` |
-
-- JSON serialization failures become `RESPONSE_SERIALIZATION_FAILED` (`500`).
-- HEAD responses preserve status/headers but have no body.
-- Error responses use `Cache-Control: no-store`.
+| Body limits | `maxBodyBytes`, header- and stream-enforced |
+| Content types | JSON/`+json`, form types, 415 on mismatch |
+| Streaming | `Response`/`ctx.stream` pass-through |
+| SSE | `ctx.sse` with sync/async sources, `text/event-stream` |
+| WebSockets | Bun adapter upgrade, handlers, params, close/error |
+| Timeouts | `requestTimeoutMs`, 504 + aborted signal |
+| Cancellation | Client abort propagates to `ctx.signal` |
+| Compression | Deferred until adapter choice + measurement |
 
 ---
 
-## 💥 Error model
+## 🔌 WebSockets
+
+Core owns a `WebSocketTable` using the same path patterns as HTTP. The Bun
+adapter receives a `matchWebSocket(request)` callback:
+
+1. Match a WS route and build a `WebSocketContext`.
+2. Call `server.upgrade(request, { data: match })`.
+3. Dispatch Bun WebSocket events to application handlers.
+4. Catch handler failures, call error hooks, close with `1011`.
+5. Return `426 Upgrade Required` if an HTTP request hits a WS path.
+
+No WebSocket groups/middleware yet. Message limits use Bun defaults.
+
+---
+
+## 💥 Errors and responses
 
 ```text
 QutivexError (code, status, expose, cause)
 ├── HttpError          → intentional 4xx/5xx
-├── ConfigurationError → invalid app/route/adapter setup
-├── LifecycleError     → invalid operation for current state
-├── ServerStartError   → adapter failed to start
+├── ConfigurationError → invalid setup
+├── LifecycleError     → invalid state transition
+├── ServerStartError   → adapter startup failure
 └── ServerShutdownError→ stop/hook failure
 ```
 
@@ -156,81 +207,46 @@ Client envelope:
 { "error": { "code": "NOT_FOUND", "message": "Not Found" } }
 ```
 
-`expose: false` replaces the message with the standard status phrase. Causes and
-stacks never reach clients.
+Response normalization:
+
+- `Response` unchanged.
+- `string` → text/plain.
+- JSON value → application/json.
+- `undefined` → 204.
+- Failures → safe error envelope.
+- HEAD → status/headers, no body.
 
 ---
 
-## 🔌 Adapter contract
+## 🔄 Lifecycle
 
-```ts
-interface HttpServerAdapter {
-  start(options: {
-    hostname: string;
-    port: number;
-    development: boolean;
-    fetch: (request: Request) => Promise<Response>;
-  }): HttpServer | Promise<HttpServer>;
-}
-
-interface HttpServer {
-  readonly hostname: string;
-  readonly port: number;
-  readonly url: URL;
-  stop(force?: boolean): Promise<void>;
-}
+```text
+created ──route──▶ configured ──listen()──▶ starting ──▶ running
+                                                    │
+                                      stop() ───────┤
+                                                    ▼
+                                                stopping ──▶ stopped
 ```
 
-The Bun adapter:
-
-- Calls `Bun.serve({ hostname, port, fetch, development, reusePort: false })`.
-- Exposes the bound address and a stop function.
-- Wraps startup failures in `ServerStartError` with the original cause.
-
-The core can be tested with a fake adapter, and a future runtime can implement the
-same contract without changing routes or handlers.
+- Routes/middleware/hooks freeze once startup begins.
+- `stop()` is idempotent and concurrent-safe.
+- Shutdown order: server stop → hooks (reverse) → terminal.
+- Startup failure → `failed`; hook/stop failure → `ServerShutdownError`.
 
 ---
 
-## 🗃️ Route table (Phase 2)
-
-- Map of method → path → handler.
-- Exact path matching on `URL.pathname`.
-- Path validation: leading `/`, no query/fragment/whitespace.
-- Duplicate method + path rejected.
-- HEAD fallback to GET when no explicit HEAD route exists.
-- Unknown method/path → 404 (405 is Phase 3).
-- Registration only in `created`/`configured`.
-
-Seed for Phase 3:
-[RFC 0002](RFC/0002-routing.md) adds params, wildcards, groups, metadata, and
-Bun-native route registration.
-
----
-
-## 🧪 Testing architecture
+## 🧪 Testing
 
 | Layer | Location | Proves |
 | --- | --- | --- |
-| Unit | `packages/core/test/` | Routes, responses, errors, lifecycle, concurrency |
-| Adapter | `packages/http-bun/test/` | Real `Bun.serve()`, port conflicts, repeated stop |
-| Integration | `tests/integration/` | Example app, real sockets, aborted clients, port conflicts |
-| Type-level | `tests/types/` | Public types, handler results, read-only fields |
+| Router unit | `packages/router/test/` | Patterns, priority, conflict keys, joins |
+| Core unit | `packages/core/test/` | Routing, context, middleware, bodies, hooks, SSE |
+| Adapter unit | `packages/http-bun/test/` | Real Bun server, conflicts, repeated stop |
+| Integration | `tests/integration/` | Example app, 405, WebSockets, aborted clients, docs links |
+| Type-level | `tests/types/` | Public types and invalid usage |
 | Policy | `tests/integration/` | Boundaries, pins, required docs, CI gate |
 
-CI runs the same gate on Linux and Windows:
-install → quality → typecheck → coverage → build → smoke.
-
----
-
-## 📦 Packaging and build
-
-- Workspace packages export TypeScript source through `types`/`import`
-  conditions; Bun consumes them without a build step.
-- `bun run build` bundles each package to `dist` with declared dependencies
-  externalized.
-- `private: true` prevents accidental publication before the release checklist.
-- Declaration emission and final publish metadata remain open (Phase 15).
+Current result: **179 tests, 99.62% lines, 98.99% functions**.
 
 ---
 
@@ -238,8 +254,7 @@ install → quality → typecheck → coverage → build → smoke.
 
 | Area | Phase |
 | --- | --- |
-| Path params, query/header/cookie helpers, groups, middleware, SSE, WebSockets | 3 |
-| Validation, body parsing, OpenAPI, Swagger | 4 |
+| Validation, typed params, OpenAPI, Swagger | 4 |
 | CLI, generator, settings/TOML, dev server | 5 |
 | Plugins, DI, test client | 6 |
 | Drizzle, migrations | 7 |
@@ -258,5 +273,7 @@ install → quality → typecheck → coverage → build → smoke.
 
 - [ADR 0001 — Engineering foundation](docs/decisions/0001-engineering-foundation.md)
 - [ADR 0002 — Product scope and support](docs/decisions/0002-product-scope.md)
+- [ADR 0003 — Route matching](docs/decisions/0003-route-matching.md)
 - [RFC 0001 — Public API](RFC/0001-public-api.md)
-- [Phase 2 checklist](docs/phase-2-checklist.md)
+- [RFC 0002 — Routing](RFC/0002-routing.md)
+- [Phase 3 checklist](docs/phase-3-checklist.md)

@@ -20,6 +20,9 @@
     "packages/core": {
       "name": "@qutivex/core",
       "version": "0.0.0",
+      "dependencies": {
+        "@qutivex/router": "workspace:*",
+      },
     },
     "packages/http-bun": {
       "name": "@qutivex/http-bun",

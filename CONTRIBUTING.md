@@ -1,9 +1,9 @@
 # Contributing to Qutivex
 
-Thanks for your interest. Qutivex is currently at **Phase 2** (minimal HTTP
-core) and is not production-ready. Contributions that align with the current
-phase are welcome; large features should start as an issue or RFC so they are
-not designed in a pull request.
+Thanks for your interest. Qutivex is currently at **Phase 3** (routing,
+context, middleware, and HTTP) and is not production-ready. Contributions that
+align with the current phase are welcome; large features should start as an issue
+or RFC so they are not designed in a pull request.
 
 Read [ROADMAP.md](ROADMAP.md) for phase scope and [ARCHITECTURE.md](ARCHITECTURE.md)
 for package boundaries before making structural changes.

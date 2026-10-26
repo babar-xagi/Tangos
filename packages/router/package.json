@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Qutivex public route definitions and registration.",
+  "description": "Qutivex route pattern compilation, matching, specificity, and group prefixes.",
   "license": "MIT",
   "sideEffects": false,
   "main": "./src/index.ts",
