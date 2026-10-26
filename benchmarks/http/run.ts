@@ -1,5 +1,5 @@
 import { cpus } from "node:os";
-import { summarize, type LatencySummary } from "./stats";
+import { type LatencySummary, summarize } from "./stats";
 
 /**
  * Phase 1 benchmark harness.

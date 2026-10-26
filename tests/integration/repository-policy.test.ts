@@ -86,8 +86,7 @@ describe("repository policy", () => {
     const ci = await readText(".github/workflows/ci.yml");
 
     expect(ci).toContain("bun install --frozen-lockfile");
-    expect(ci).toContain("bun run format:check");
-    expect(ci).toContain("bun run lint");
+    expect(ci).toContain("bun run quality");
     expect(ci).toContain("bun run typecheck");
     expect(ci).toContain("bun run test:coverage");
     expect(ci).toContain("bun run build");

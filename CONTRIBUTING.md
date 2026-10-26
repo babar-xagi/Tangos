@@ -27,8 +27,9 @@ bun install --frozen-lockfile
 bun run validate
 ```
 
-`bun run validate` is the same gate CI runs: build, format check, lint,
-type-check, tests with coverage, and the example smoke test.
+`bun run validate` is the same gate CI runs: build, the Biome quality gate
+(format, lint, import order), type-check, tests with coverage, and the example
+smoke test.
 
 Run the example locally with:
 
@@ -40,8 +41,9 @@ bun run example
 
 | Command                 | Purpose                                                   |
 | ----------------------- | --------------------------------------------------------- |
+| `bun run quality`       | Format, lint, and import-order check (CI gate)            |
+| `bun run fix`           | Apply formatting, lint fixes, and import sorting          |
 | `bun run format`        | Format with Biome (`--write`)                             |
-| `bun run format:check`  | Check formatting, fail on differences                     |
 | `bun run lint`          | Lint with Biome                                           |
 | `bun run typecheck`     | Type-check all projects with the pinned TypeScript 7      |
 | `bun test`              | Run unit and integration tests                            |

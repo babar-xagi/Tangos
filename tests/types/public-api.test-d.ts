@@ -1,4 +1,4 @@
-import { type FRAMEWORK, PACKAGE as CORE } from "@qutivex/core";
+import { PACKAGE as CORE, type FRAMEWORK } from "@qutivex/core";
 import type { PACKAGE as HTTP_BUN } from "@qutivex/http-bun";
 import type { PACKAGE as ROUTER } from "@qutivex/router";
 

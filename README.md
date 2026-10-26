@@ -16,7 +16,8 @@ repository architecture.
 - A Bun workspace monorepo with the three initial packages needed for the core
   prototype: `@qutivex/core`, `@qutivex/router`, and `@qutivex/http-bun`.
 - Strict TypeScript configuration and a pinned compiler.
-- Biome formatting and linting for TypeScript, JavaScript, and JSON.
+- Biome formatting, linting, and import ordering for TypeScript, JavaScript,
+  and JSON.
 - `bun test` unit, integration, and type-level tests with a coverage threshold.
 - GitHub Actions that install, format-check, lint, type-check, test, build, and
   smoke-test the example on Linux and Windows.
@@ -40,8 +41,8 @@ for exactly what Phase 1 delivered.
 - Git.
 - Node.js is not required.
 
-The repository is tested on Linux and Windows in CI. macOS should work but is
-not yet part of the CI matrix.
+CI is configured to validate Linux and Windows in GitHub Actions. macOS should
+work but is not yet part of the matrix.
 
 ### Windows and WSL
 
@@ -68,8 +69,9 @@ bun run example
 
 Then open <http://127.0.0.1:3000/>. Stop the example with `Ctrl+C`.
 
-`bun run validate` builds the packages, checks formatting, lints, type-checks,
-runs the tests with coverage, and smoke-tests the example.
+`bun run validate` builds the packages, runs the Biome quality gate (format,
+lint, and import order), type-checks, runs the tests with coverage, and
+smoke-tests the example.
 
 ## Commands
 
@@ -77,8 +79,9 @@ runs the tests with coverage, and smoke-tests the example.
 | ------------------------ | ---------------------------------------------------------- |
 | `bun install`            | Install workspace dependencies from `bun.lock`             |
 | `bun run validate`       | Full local quality gate (build, checks, tests, smoke)      |
+| `bun run quality`        | Check formatting, lint, and import order (CI gate)         |
+| `bun run fix`            | Apply formatting, lint fixes, and import sorting           |
 | `bun run format`         | Format TypeScript/JavaScript/JSON with Biome (`--write`)   |
-| `bun run format:check`   | Verify formatting without writing                          |
 | `bun run lint`           | Lint with Biome                                            |
 | `bun run typecheck`      | Type-check every workspace project with TypeScript 7       |
 | `bun test`               | Run unit and integration tests                             |

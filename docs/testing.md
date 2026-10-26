@@ -17,6 +17,8 @@ type-level tests where inference matters.
 ## Commands
 
 ```sh
+bun run quality             # format + lint + import order (CI gate)
+bun run fix                 # apply formatting, lint fixes, import sorting
 bun test                    # all unit + integration tests
 bun test --watch            # watch mode
 bun run test:coverage       # text + lcov, enforces 90% threshold
@@ -28,8 +30,8 @@ bun run validate            # everything CI runs
 ## Coverage
 
 - Coverage is collected with Bun's native instrumentation.
-- `bunfig.toml` sets `coverageThreshold = 0.9`; the command fails if lines,
-  functions, or statements fall below it.
+- `bunfig.toml` sets `coverageThreshold = 0.9`; the command fails if function or
+  line coverage falls below it.
 - Test files are excluded from coverage.
 - Do not lower the threshold to land a feature. Add tests or, for genuinely
   unreachable glue code, isolate it and document the exception.
@@ -74,12 +76,11 @@ direction. New packages must extend it rather than bypass it.
 GitHub Actions runs on Linux and Windows:
 
 1. `bun install --frozen-lockfile`
-2. `bun run format:check`
-3. `bun run lint`
-4. `bun run typecheck`
-5. `bun run test:coverage`
-6. `bun run build`
-7. `bun run smoke`
+2. `bun run quality`
+3. `bun run typecheck`
+4. `bun run test:coverage`
+5. `bun run build`
+6. `bun run smoke`
 
 A failure at any step fails the job. `bun run validate` mirrors the same gate
 locally, in the same order.

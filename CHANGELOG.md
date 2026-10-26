@@ -16,7 +16,7 @@ published release.
 - Biome 2.6.3 formatting and linting for TypeScript, JavaScript, and JSON.
 - `bun test` unit, integration, and type-level tests with a 90% coverage
   threshold.
-- GitHub Actions CI for Linux and Windows: install, format, lint, type-check,
+- GitHub Actions CI for Linux and Windows: install, quality gate, type-check,
   test with coverage, build, and example smoke test.
 - Minimal Phase 1 example (`examples/hello`) and a real-socket smoke test.
 - Baseline-only HTTP benchmark harness, explicitly publishing no performance

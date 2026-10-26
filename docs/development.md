@@ -47,9 +47,8 @@ or a manifest changed; commit both together after review.
 ## Daily commands
 
 ```sh
-bun run format        # write formatting
-bun run format:check  # verify formatting
-bun run lint          # lint
+bun run quality       # format + lint + import order (CI gate)
+bun run fix           # apply formatting, lint fixes, and import sorting
 bun run typecheck     # TypeScript 7, no emit
 bun test              # unit + integration
 bun run test:coverage # with 90% threshold and LCOV
@@ -58,6 +57,9 @@ bun run smoke         # real-socket example check
 bun run bench         # baseline-only harness
 bun run clean         # remove dist/ and coverage/
 ```
+
+`bun run format` and `bun run lint` remain available as focused, single-purpose
+commands; `bun run quality` is the gate and also enforces import ordering.
 
 `bun run validate` runs the full CI gate locally. Run it before pushing.
 

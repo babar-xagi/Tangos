@@ -1,4 +1,4 @@
-import { FRAMEWORK, PACKAGE as CORE_PACKAGE } from "@qutivex/core";
+import { PACKAGE as CORE_PACKAGE, FRAMEWORK } from "@qutivex/core";
 
 /**
  * Phase 1 example server.

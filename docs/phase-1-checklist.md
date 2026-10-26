@@ -13,7 +13,7 @@ records the exit-criteria evidence. Phase 2 (minimal HTTP core) is not started.
 | Create only the initial packages needed for the core prototype | ✅ | `packages/core`, `packages/router`, `packages/http-bun` |
 | Configure TypeScript with strict settings | ✅ | [tsconfig.json](../tsconfig.json) (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, …) |
 | Configure a supported type-check command in CI | ✅ | TypeScript 7.0.2, `bun run typecheck`; see [ADR 0001](decisions/0001-engineering-foundation.md) |
-| Configure formatter and lint rules | ✅ | [biome.json](../biome.json), `bun run format:check`, `bun run lint` |
+| Configure formatter and lint rules | ✅ | [biome.json](../biome.json), `bun run quality` (format, lint, import order) |
 | Configure `bun test` and test coverage reporting | ✅ | `bun run test:coverage`, [bunfig.toml](../bunfig.toml) 90% threshold, LCOV upload |
 | Add unit-test and integration-test directory conventions | ✅ | `packages/*/test`, `tests/unit`, `tests/integration`, `tests/types`; [testing guide](testing.md) |
 | Add GitHub Actions for install, type-check, tests, lint, build | ✅ | [.github/workflows/ci.yml](../.github/workflows/ci.yml) |
@@ -26,7 +26,7 @@ records the exit-criteria evidence. Phase 2 (minimal HTTP core) is not started.
 
 - **Reproducible local setup** — pinned Bun/TypeScript/Biome, exact installs,
   committed lockfile, documented in [development guide](development.md).
-- **CI that fails on broken types/tests** — format, lint, type-check,
+- **CI that fails on broken types/tests** — quality gate, type-check,
   coverage-gated tests, build, and example smoke test on Linux and Windows.
 - **Package boundary conventions** — [ARCHITECTURE.md](../ARCHITECTURE.md) plus
   executable checks in `tests/integration/workspace-boundaries.test.ts`.
@@ -62,7 +62,9 @@ README and example README.
 | Host | Windows (x64) |
 | CI targets | `ubuntu-latest`, `windows-latest` |
 | Example smoke | ephemeral `127.0.0.1:0` socket |
-| Coverage threshold | 90% (lines/functions/statements) |
+| Coverage threshold | 90% (functions and lines) |
+| Test result | 23 pass, 0 fail, 100% functions/lines |
+| Clean checkout | `git archive HEAD` → `bun install --frozen-lockfile` → `bun run validate`: passed |
 
 Run `bun run validate` to reproduce the local gate. Exact pass/fail output is
 not frozen in this document; CI is the source of truth for a given commit.
