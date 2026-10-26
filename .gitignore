@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local toolchains and caches used during scaffolding
+.tools/
+.tools-cache/
+.npm-cache/
+.bun-cache/
+
+# Environment files (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Benchmark output
+benchmarks/results/
+
+# Editor and OS noise
+.idea/
+.DS_Store
+Thumbs.db
+*.log

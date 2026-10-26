@@ -1,0 +1,83 @@
+name: Bug report
+description: Report a reproducible defect in the repository, tooling, or example.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem.
+
+        **Do not report security vulnerabilities here.** Follow
+        [SECURITY.md](https://github.com/qutivex/qutivex/blob/main/SECURITY.md)
+        and use private vulnerability reporting instead.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is broken, in one or two sentences?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest set of commands or code that reproduces the problem.
+      placeholder: |
+        bun --version
+        bun install --frozen-lockfile
+        bun run validate
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include the full error output and stack trace if available.
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Bun version, commit hash, and whether this is native Windows, WSL, or another environment.
+      placeholder: "Windows 11 / Bun 1.4.2 / commit abc1234 / native"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Core package
+        - Router package
+        - Bun HTTP adapter
+        - Example
+        - Tooling, scripts, or CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: This report does not contain a security vulnerability or a secret.
+          required: true

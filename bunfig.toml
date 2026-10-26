@@ -1,0 +1,18 @@
+# Bun configuration for the Qutivex monorepo.
+# https://bun.sh/docs/runtime/bunfig
+
+[install]
+# Dependencies are pinned exactly and recorded in bun.lock. Upgrades are
+# deliberate, reviewed changes rather than floating ranges.
+exact = true
+# Biome resolves its platform binary through Node from its package directory.
+# Bun's isolated linker hides that optional dependency from Node, so use the
+# hoisted layout tooling expects. Revisit if every tool ships linker-aware
+# resolution.
+linker = "hoisted"
+
+[test]
+# Coverage is enabled explicitly by `bun run test:coverage`; thresholds below
+# apply whenever coverage collection is on.
+coverageThreshold = 0.9
+coverageSkipTestFiles = true

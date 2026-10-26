@@ -1,0 +1,14 @@
+{
+  "name": "@qutivex/example-hello",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Phase 1 toolchain example: the smallest runnable Bun server in this repository.",
+  "license": "MIT",
+  "dependencies": {
+    "@qutivex/core": "workspace:*"
+  },
+  "scripts": {
+    "start": "bun run src/main.ts"
+  }
+}

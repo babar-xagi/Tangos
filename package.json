@@ -1,0 +1,41 @@
+{
+  "name": "qutivex-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Qutivex — a Bun-first, TypeScript-native application framework.",
+  "license": "MIT",
+  "author": "Qutivex contributors",
+  "packageManager": "bun@1.4.4",
+  "engines": {
+    "bun": ">=1.4.4"
+  },
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "scripts": {
+    "build": "bun run scripts/build.ts",
+    "verify": "bun run format:check && bun run lint && bun run typecheck",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "quality": "biome ci .",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov",
+    "test:watch": "bun test --watch",
+    "example": "bun run examples/hello/src/main.ts",
+    "start": "bun run examples/hello/src/main.ts",
+    "smoke": "bun run scripts/smoke-example.ts",
+    "bench": "bun run benchmarks/http/run.ts",
+    "validate": "bun run build && bun run verify && bun run test:coverage && bun run smoke",
+    "clean": "bun run scripts/clean.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "@types/bun": "1.4.4",
+    "typescript": "7.0.2"
+  }
+}

@@ -1,0 +1,70 @@
+name: Feature request
+description: Propose a capability or improvement aligned with the roadmap.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Qutivex is built phase by phase. Read
+        [ROADMAP.md](https://github.com/qutivex/qutivex/blob/main/ROADMAP.md)
+        first and explain which phase or user problem this request belongs to.
+        Large API changes need an RFC, not only an issue.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can you not do today, or what is unnecessarily difficult?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior you want. Include an API sketch if relevant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What else did you try or consider, and why is it insufficient?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Roadmap phase
+      description: Which phase does this belong to? Choose "Not sure" if you are unsure.
+      options:
+        - Phase 2 — Minimal HTTP core
+        - Phase 3 — Routing, context, middleware
+        - Phase 4 — Validation, type inference, OpenAPI
+        - Phase 5 — CLI, generator, settings, TOML
+        - Phase 6 — Plugins, DI, testing tools
+        - Phase 7 — Database and migrations
+        - Phase 8 — Authentication and security
+        - Phase 9 — Admin panel
+        - Phase 10 — Jobs, cache, storage, email
+        - Phase 11 — AI model integration
+        - Phase 12 — Agents and durable workflows
+        - Phase 13 — Observability and operations
+        - Phase 14 — Full-stack capabilities
+        - Phase 15 — Performance, security, 1.0
+        - Not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and RFCs for this request.
+          required: true
+        - label: I understand this issue is a proposal, not an accepted design.
+          required: true

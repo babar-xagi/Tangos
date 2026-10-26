@@ -1,0 +1,18 @@
+* text=auto eol=lf
+
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Two trailing spaces are a Markdown hard line break; do not flag them.
+*.md whitespace=-trailing-space
+
+bun.lock linguist-generated=true
